@@ -1,8 +1,12 @@
+#include "math.h"
 #include "Xscugic.h"
 #include "Xil_exception.h"
 #include "xttcps.h"
 #include "xparameters.h"
 #include "xil_io.h"
+
+// math define
+#define PI acos(-1)
 
 // output define
 #define IO_ADDR_OUTPUT				(XPAR_IO_CONTROL_0_S00_AXI_BASEADDR + 0)
@@ -28,7 +32,7 @@ typedef struct {
 } TmrCntrSetup;
 
 static TmrCntrSetup SettingsTable[1] = {
-	{100000, 0, 0, 0},	/* Ticker timer counter initial setup, only output freq */
+	{1000000, 0, 0, 0},	/* Ticker timer counter initial setup, only output freq */
 };
 
 static XScuGic Intc; //GIC
@@ -37,30 +41,41 @@ static void SetupInterruptSystem(XScuGic *GicInstancePtr, XTtcPs *TtcPsInt);
 static void TickHandler(void *CallBackRef);
 
 // input
-u32 PWM_Frequency;
-u32 PWM_Duty;
-int PWM_Count;
+double g_dPWM_Frequency; // Hz
+double g_dPWM_Duty; // 0-100
+double g_dPWM_Toff; // Unit: 1 microsecond
+double g_dPWM_Ton; // Unit: 1 microsecond
+double g_dAnal_Frequency; // Hz
+double g_dAnal_Amp; // V
+double g_dAnal_Omega; // rad per microsecond
 
 // output
-u32 outputdata_JF8;
-int i;
-u32 mask;
-int TickCount;
+int g_outputdata_P2;
+u32 g_outputdata_JF8;
+int g_iOutput;
+u32 g_mask;
+int g_PWM_TickCount; // Unit: 1 microsecond
+int g_Anal_TickCount; // Unit: 1 microsecond
 
 int main()
-{	
-	// setup input
-	PWM_Frequency = 2;
-	PWM_Duty = 20;
-	PWM_Count = 100 / PWM_Duty - 1;
+{
+	// set input PWM
+	g_dPWM_Frequency = 10000.0;
+	g_dPWM_Duty = 50;
+	double dPeriod = (1.0 / g_dPWM_Frequency) * 1000000.0; // Unit: 1 microsecond
+	g_dPWM_Ton = g_dPWM_Duty / g_dPWM_Frequency * 10000.0;
+	g_dPWM_Toff = dPeriod - g_dPWM_Ton;
+
+	// set input analog
+	g_dAnal_Frequency = 10000.0;
+	g_dAnal_Amp = 5.5;
+	g_dAnal_Omega = 2.0*PI*g_dAnal_Frequency / 1000000.0;
 	
 	XTtcPs_Config *Config;
 	XTtcPs Timer;
 	TmrCntrSetup *TimerSetup;
 
 	TimerSetup = &SettingsTable[TTC_DEVICE_ID];
-	TimerSetup->OutputHz = 100 * PWM_Frequency / PWM_Duty;
-
 	XTtcPs_Stop(&Timer);
 
 	//initialise the timer
@@ -75,16 +90,20 @@ int main()
     SetupInterruptSystem(&Intc, &Timer);
 
 	// select output
-    i = 0;
-    outputdata_JF8 = Xil_In32(IO_ADDR_OUTPUT_STATUS);
-    mask = 1 << (i);
+    g_iOutput = 0;
+    g_outputdata_JF8 = Xil_In32(IO_ADDR_OUTPUT_STATUS);
+    g_outputdata_JF8 = 0;
+    g_mask = 1 << (g_iOutput);
 
 	// start
-	TickCount = 0;
+	g_PWM_TickCount = 0;
+	g_Anal_TickCount = 0;
+	g_outputdata_P2 = 0;
 
     while(1)
 	{
-    	Xil_Out32(IO_ADDR_OUTPUT, outputdata_JF8);
+    	Xil_Out32(IO_ADDR_OUTPUT, g_outputdata_JF8);
+		Xil_Out32(LCTRL_ADDR_ANALOG1_OUT, g_outputdata_P2);
     }
 
     return 0;
@@ -97,17 +116,13 @@ static void SetupInterruptSystem(XScuGic *GicInstancePtr, XTtcPs *TtcPsInt)
 
 	//initialise the GIC
 	IntcConfig = XScuGic_LookupConfig(INTC_DEVICE_ID);
-
 	XScuGic_CfgInitialize(GicInstancePtr, IntcConfig, IntcConfig->CpuBaseAddress);
 
 	//connect to the hardware
 	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT, (Xil_ExceptionHandler)XScuGic_InterruptHandler, GicInstancePtr);
-
 	XScuGic_Connect(GicInstancePtr, TTC_INTR_ID, (Xil_ExceptionHandler)TickHandler, (void *)TtcPsInt);
-
 	XScuGic_Enable(GicInstancePtr, TTC_INTR_ID);
 	XTtcPs_EnableInterrupts(TtcPsInt, XTTCPS_IXR_INTERVAL_MASK);
-
 	XTtcPs_Start(TtcPsInt);
 
 	// Enable interrupts in the Processor.
@@ -121,14 +136,35 @@ static void TickHandler(void *CallBackRef)
 	StatusEvent = XTtcPs_GetInterruptStatus((XTtcPs *)CallBackRef);
 	XTtcPs_ClearInterruptStatus((XTtcPs *)CallBackRef, StatusEvent);
 
-	if (TickCount == PWM_Count)
+	// Sine
+	g_Anal_TickCount++;
+	g_outputdata_P2 = round(32767.0 / 5.5 * (g_dAnal_Amp * sin(g_dAnal_Omega * g_Anal_TickCount))) + 32767;
+
+	// PWM
+	if (g_PWM_TickCount < g_dPWM_Toff)
 	{
-		outputdata_JF8 = outputdata_JF8 | mask;
-		TickCount = 0;
+		g_outputdata_JF8 = 0;
+
+		if (g_PWM_TickCount >= (g_dPWM_Toff + g_dPWM_Ton - 1))
+		{
+			g_PWM_TickCount = 0;
+		}
+		else
+		{
+			g_PWM_TickCount++;
+		}
 	}
 	else
 	{
-		outputdata_JF8 = 0;
-		TickCount++;
+		g_outputdata_JF8 = g_outputdata_JF8 | g_mask;
+
+		if (g_PWM_TickCount >= (g_dPWM_Toff + g_dPWM_Ton - 1))
+		{
+			g_PWM_TickCount = 0;
+		}
+		else
+		{
+			g_PWM_TickCount++;
+		}
 	}
 }
