@@ -4,8 +4,12 @@
 // u32 GetTriangleWaveData();
 // u32 GetSawtoothWaveData();
 static void GetPWM();
+static void SetLED();
 
 /************************** Extern Variable *****************************/
+
+// LED test
+extern u32 g_setLED_output;
 
 // input
 extern double g_dPWM_Frequency; // Hz
@@ -55,6 +59,27 @@ static void GetPWM()
 		}
 	}
 }
+
+/*************************************************************************/
+
+static void SetLED()
+{
+	if (Xil_In32(IO_ADDR_BRAM))
+	{
+		g_setLED_output = Xil_In32(IO_ADDR_BRAM+12);
+	}
+	
+	// if (g_setLED_output == 16)
+	// {
+	// 	g_setLED_output = 1;
+	// }
+	// else
+	// {
+	// 	g_setLED_output++;
+	// }
+}
+
+/*************************************************************************/
 
 // input
 // double g_dPWM_Frequency; // Hz

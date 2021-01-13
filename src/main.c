@@ -11,6 +11,9 @@ int g_iOutput;
 u32 g_mask;
 int g_PWM_TickCount; // Unit: 1 microsecond
 
+// LED test
+u32 g_setLED_output;
+
 int main()
 {
 	// set input PWM
@@ -26,11 +29,14 @@ int main()
 	// start
 	g_PWM_TickCount = 0;
 
+	g_setLED_output = 0;
+
 	SetupInterrupt();
 
 	while (1)
 	{
-		Xil_Out32(IO_ADDR_OUTPUT, g_outputdata_JF8);
+		Xil_Out32(IO_ADDR_LEDOUT, g_setLED_output);
+		// Xil_Out32(IO_ADDR_OUTPUT, g_outputdata_JF8);
 	}
 
 	return 0;

@@ -9,7 +9,7 @@
 #define TTC_INTR_ID		    XPAR_XTTCPS_0_INTR
 #define INTC_DEVICE_ID		XPAR_SCUGIC_SINGLE_DEVICE_ID
 
-#define HZ_INTERRUPT 1000000
+#define HZ_INTERRUPT 1
 
 typedef struct {
 	u32 OutputHz;	/* Output frequency */
@@ -90,12 +90,14 @@ static void TickHandler(void *CallBackRef)
 	StatusEvent = XTtcPs_GetInterruptStatus((XTtcPs *)CallBackRef);
 	XTtcPs_ClearInterruptStatus((XTtcPs *)CallBackRef, StatusEvent);
 
-    XTime start, end;
-	double timePWM;
-	
 	// to do
-	XTime_GetTime(&start);
-	GetPWM();
-	XTime_GetTime(&end);
-	timePWM = (double)(end - start) / COUNTS_PER_SECOND * UNIT_TIME;
+	SetLED();
+
+    // XTime start, end;
+	// double timePWM;
+	
+	// XTime_GetTime(&start);
+	// GetPWM();
+	// XTime_GetTime(&end);
+	// timePWM = (double)(end - start) / COUNTS_PER_SECOND * UNIT_TIME;
 }
