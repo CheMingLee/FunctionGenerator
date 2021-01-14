@@ -5,7 +5,6 @@
 // u32 GetSawtoothWaveData();
 static void GetPWM();
 static void SetLED();
-
 /************************** Extern Variable *****************************/
 
 // LED test
@@ -67,6 +66,10 @@ static void SetLED()
 	if (Xil_In32(IO_ADDR_BRAM))
 	{
 		g_setLED_output = Xil_In32(IO_ADDR_BRAM+12);
+	}
+	else
+	{
+		g_setLED_output = 0xf;
 	}
 	
 	// if (g_setLED_output == 16)
