@@ -66,6 +66,7 @@ static void SetLED()
 	if (Xil_In32(IO_ADDR_BRAM))
 	{
 		g_setLED_output = Xil_In32(IO_ADDR_BRAM+12);
+		Xil_Out32(IO_ADDR_BRAM, 0x00);
 	}
 	else
 	{
