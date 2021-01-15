@@ -5,6 +5,9 @@
 // u32 GetSawtoothWaveData();
 static void GetPWM();
 static void SetLED();
+static bool CheckFlag();
+static void SetFlagInZero();
+static void SetFlagOutOne();
 /************************** Extern Variable *****************************/
 
 // LED test
@@ -31,56 +34,96 @@ static void GetPWM()
 	dPWM_Ton = g_dPWM_Duty / g_dPWM_Frequency / 100 * UNIT_TIME;
 	dPWM_Toff = dPeriod - dPWM_Ton;
 
-    if (g_PWM_TickCount < dPWM_Toff)
-	{
-		g_outputdata_JF8 = 0;
+    // if (g_PWM_TickCount < dPWM_Toff)
+	// {
+	// 	g_outputdata_JF8 = 0;
 
-		if (g_PWM_TickCount >= (dPWM_Toff + dPWM_Ton - 1))
-		{
-			g_PWM_TickCount = 0;
-		}
-		else
-		{
-			g_PWM_TickCount++;
-		}
-	}
-	else
-	{
-		g_outputdata_JF8 = g_outputdata_JF8 | g_mask;
+	// 	if (g_PWM_TickCount >= (dPWM_Toff + dPWM_Ton - 1))
+	// 	{
+	// 		g_PWM_TickCount = 0;
+	// 	}
+	// 	else
+	// 	{
+	// 		g_PWM_TickCount++;
+	// 	}
+	// }
+	// else
+	// {
+	// 	g_outputdata_JF8 = g_outputdata_JF8 | g_mask;
 
-		if (g_PWM_TickCount >= (dPWM_Toff + dPWM_Ton - 1))
-		{
-			g_PWM_TickCount = 0;
-		}
-		else
-		{
-			g_PWM_TickCount++;
-		}
-	}
+	// 	if (g_PWM_TickCount >= (dPWM_Toff + dPWM_Ton - 1))
+	// 	{
+	// 		g_PWM_TickCount = 0;
+	// 	}
+	// 	else
+	// 	{
+	// 		g_PWM_TickCount++;
+	// 	}
+	// }
 }
 
 /*************************************************************************/
 
 static void SetLED()
 {
-	if (Xil_In32(IO_ADDR_BRAM))
+	u32 uLedStatus;
+	u16 usAsk;
+	
+	g_setLED_output = Xil_In32(IO_ADDR_BRAM_IN_DATA);
+	Xil_Out32(IO_ADDR_LEDOUT, g_setLED_output);
+	SetFlagInZero();
+
+	usAsk = CMD_SETLED;
+	Xil_Out32(IO_ADDR_BRAM_OUT_ASK, usAsk);
+	uLedStatus = Xil_In32(IO_ADDR_LEDOUT_STATUS);
+	Xil_Out32(IO_ADDR_BRAM_OUT_DATA, uLedStatus);
+	SetFlagOutOne();
+}
+
+/*************************************************************************/
+
+static bool CheckFlag()
+{
+	bool bFlag;
+	u32 uFlag;
+	u32 mask;
+	int i;
+
+	uFlag = Xil_In32(IO_ADDR_BRAM_IN_FLAG);
+	i = 0;
+	mask = 1 << i;
+	bFlag = false;
+
+	if (uFlag == mask)
 	{
-		g_setLED_output = Xil_In32(IO_ADDR_BRAM+12);
-		Xil_Out32(IO_ADDR_BRAM, 0x00);
-	}
-	else
-	{
-		g_setLED_output = 0xf;
+		bFlag = true;
 	}
 	
-	// if (g_setLED_output == 16)
-	// {
-	// 	g_setLED_output = 1;
-	// }
-	// else
-	// {
-	// 	g_setLED_output++;
-	// }
+	return bFlag;
+}
+
+static void SetFlagInZero()
+{
+	u32 uFlag;
+	u32 mask;
+	int i;
+	i = 0;
+	mask = 1 << i;
+	uFlag = Xil_In32(IO_ADDR_BRAM_IN_FLAG);
+	uFlag &= ~mask;
+	Xil_Out32(IO_ADDR_BRAM_IN_FLAG, uFlag);
+}
+
+static void SetFlagOutOne()
+{
+	u32 uFlag;
+	u32 mask;
+	int i;
+	i = 1;
+	mask = 1 << i;
+	uFlag = Xil_In32(IO_ADDR_BRAM_IN_FLAG);
+	uFlag |= mask;
+	Xil_Out32(IO_ADDR_BRAM_IN_FLAG, uFlag);
 }
 
 /*************************************************************************/

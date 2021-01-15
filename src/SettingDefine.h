@@ -1,12 +1,26 @@
 #include "stdlib.h"
+#include "stdbool.h"
 #include "math.h"
 #include "string.h"
 #include "xparameters.h"
 #include "xtime_l.h"
 #include "xil_io.h"
 
+// BRAM define
+#define IO_ADDR_BRAM_IN_FLAG		(XPAR_BRAM_0_BASEADDR + 0)
+#define IO_ADDR_BRAM_IN_CMD         (XPAR_BRAM_0_BASEADDR + 8)
+#define IO_ADDR_BRAM_IN_DATA        (XPAR_BRAM_0_BASEADDR + 12)
+#define IO_ADDR_BRAM_OUT_ASK        (XPAR_BRAM_0_BASEADDR + 264)
+#define IO_ADDR_BRAM_OUT_DATA       (XPAR_BRAM_0_BASEADDR + 268)
+
+// CMD define
+#define CMD_SETLED 0
+#define CMD_SETOUTPUTCH 1
+#define CMD_SETOUTPUTEXCH 2
+#define CMD_SETANALOG1OUT 3
+#define CMD_SETANALOG2OUT 4
+
 // output define
-#define IO_ADDR_BRAM				XPAR_BRAM_0_BASEADDR
 #define IO_ADDR_OUTPUT				(XPAR_IO_CONTROL_0_S00_AXI_BASEADDR + 0)
 #define IO_ADDR_OUTPUT_EX			(XPAR_IO_CONTROL_0_S00_AXI_BASEADDR + 4)
 #define IO_ADDR_LEDOUT				(XPAR_IO_CONTROL_0_S00_AXI_BASEADDR + 68)
