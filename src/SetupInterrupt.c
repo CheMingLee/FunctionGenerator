@@ -9,7 +9,7 @@
 #define TTC_INTR_ID		    XPAR_XTTCPS_0_INTR
 #define INTC_DEVICE_ID		XPAR_SCUGIC_SINGLE_DEVICE_ID
 
-#define HZ_INTERRUPT 100
+#define HZ_INTERRUPT		100
 
 typedef struct {
 	u32 OutputHz;	/* Output frequency */
@@ -43,7 +43,7 @@ static void SetupInterrupt(void)
  	XTtcPs_CfgInitialize(&Timer, Config, Config->BaseAddress);
 
  	TimerSetup->Options |= (XTTCPS_OPTION_INTERVAL_MODE |
- 						      XTTCPS_OPTION_WAVE_DISABLE);
+ 							XTTCPS_OPTION_WAVE_DISABLE);
 
  	XTtcPs_SetOptions(&Timer, TimerSetup->Options);
  	XTtcPs_CalcIntervalFromFreq(&Timer, TimerSetup->OutputHz,&(TimerSetup->Interval), &(TimerSetup->Prescaler));
@@ -102,7 +102,31 @@ static void TickHandler(void *CallBackRef)
 				SetLED();
 				break;
 			}
+
+			case CMD_SETOUTPUT:
+			{
+				SetPWM_JF8();
+				break;
+			}
+
+			case CMD_SETOUTPUTEX:
+			{
+
+				break;
+			}
 			
+			case CMD_SETANALOG1OUT:
+			{
+
+				break;
+			}
+
+			case CMD_SETANALOG2OUT:
+			{
+
+				break;
+			}
+
 			default:
 			{
 				break;

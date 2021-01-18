@@ -1,82 +1,71 @@
 #include "SettingDefine.h"
 
-// u32 GetSineWaveData(double dFreq, double dAmp);
-// u32 GetTriangleWaveData();
-// u32 GetSawtoothWaveData();
-static void GetPWM();
+/*************************************************************************/
+
 static void SetLED();
+static void SetPWM_JF8();
 static bool CheckFlag();
 static void SetFlagInZero();
 static void SetFlagOutOne();
-/************************** Extern Variable *****************************/
-
-// LED test
-extern u32 g_setLED_output;
-
-// input
-extern double g_dPWM_Frequency; // Hz
-extern double g_dPWM_Duty; // 0-100
-
-// output
-extern u32 g_outputdata_JF8;
-extern int g_iOutput;
-extern u32 g_mask;
-extern int g_PWM_TickCount; // Unit: 1 microsecond
 
 /*************************************************************************/
 
-static void GetPWM()
+// input
+float g_dJF8_PWM_Frequency[16]; // Hz
+float g_dJF8_PWM_Duty[16]; // 0-100
+float g_dJF8_PWM_Delay[16]; // s
+
+// output
+extern u32 g_outputdata_JF8;
+
+/*************************************************************************/
+
+static void SetPWM_JF8()
 {
-    double dPWM_Toff; // Unit: 1 microsecond
-    double dPWM_Ton; // Unit: 1 microsecond
-    double dPeriod;
-    dPeriod = (1.0 / g_dPWM_Frequency) * UNIT_TIME;
-	dPWM_Ton = g_dPWM_Duty / g_dPWM_Frequency / 100 * UNIT_TIME;
-	dPWM_Toff = dPeriod - dPWM_Ton;
+	u32 mask;
+	int i;
 
-    // if (g_PWM_TickCount < dPWM_Toff)
-	// {
-	// 	g_outputdata_JF8 = 0;
+	for (i = 0; i < 16; i++)
+	{
+		g_dJF8_PWM_Frequency[i] = Xil_In32(IO_ADDR_BRAM_IN_DATA);
+		g_dJF8_PWM_Duty[i] = Xil_In32(IO_ADDR_BRAM_IN_DATA + 4);
+		g_dJF8_PWM_Delay[i] = Xil_In32(IO_ADDR_BRAM_IN_DATA + 8);
 
-	// 	if (g_PWM_TickCount >= (dPWM_Toff + dPWM_Ton - 1))
-	// 	{
-	// 		g_PWM_TickCount = 0;
-	// 	}
-	// 	else
-	// 	{
-	// 		g_PWM_TickCount++;
-	// 	}
-	// }
-	// else
-	// {
-	// 	g_outputdata_JF8 = g_outputdata_JF8 | g_mask;
+		g_outputdata_JF8 = Xil_In32(IO_ADDR_OUTPUT_STATUS);
+		mask = 1 << i;
 
-	// 	if (g_PWM_TickCount >= (dPWM_Toff + dPWM_Ton - 1))
-	// 	{
-	// 		g_PWM_TickCount = 0;
-	// 	}
-	// 	else
-	// 	{
-	// 		g_PWM_TickCount++;
-	// 	}
-	// }
+		if (g_dJF8_PWM_Frequency[i] > 0)
+		{
+			g_outputdata_JF8 |= mask;
+		}
+		else
+		{
+			g_outputdata_JF8 &= ~mask;
+		}
+
+		SetFlagInZero();
+	}
 }
 
 /*************************************************************************/
 
 static void SetLED()
 {
+	u32 setLED_output;
 	u32 uLedStatus;
 	u16 usAsk;
 	
-	g_setLED_output = Xil_In32(IO_ADDR_BRAM_IN_DATA);
-	Xil_Out32(IO_ADDR_LEDOUT, g_setLED_output);
-	SetFlagInZero();
+	setLED_output = Xil_In32(IO_ADDR_BRAM_IN_DATA);
+	Xil_Out32(IO_ADDR_LEDOUT, setLED_output);
 
 	usAsk = CMD_SETLED;
-	Xil_Out32(IO_ADDR_BRAM_OUT_ASK, usAsk);
+	Xil_Out16(IO_ADDR_BRAM_OUT_ASK, usAsk);
+	Xil_Out16(IO_ADDR_BRAM_OUT_ASK_SIZE, sizeof(usAsk));
 	uLedStatus = Xil_In32(IO_ADDR_LEDOUT_STATUS);
 	Xil_Out32(IO_ADDR_BRAM_OUT_DATA, uLedStatus);
+	Xil_Out32(IO_ADDR_BRAM_OUT_SIZE, sizeof(uLedStatus)+4);
+	
+	SetFlagInZero();
 	SetFlagOutOne();
 }
 
