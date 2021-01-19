@@ -2,9 +2,9 @@
 #include "SettingDefine.h"
 
 // input
-extern float g_dJF8_PWM_Frequency[16]; // Hz
-extern float g_dJF8_PWM_Duty[16]; // 0-100
-extern float g_dJF8_PWM_Delay[16]; // s
+float g_dJF8_PWM_Frequency[16]; // Hz
+float g_dJF8_PWM_Duty[16]; // 0-100
+float g_dJF8_PWM_Delay[16]; // s
 
 // output
 u32 g_outputdata_JF8;

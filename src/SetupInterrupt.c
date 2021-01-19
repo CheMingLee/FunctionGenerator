@@ -100,12 +100,15 @@ static void TickHandler(void *CallBackRef)
 			case CMD_SETLED:
 			{
 				SetLED();
+				SetFlagOutOne();
+				SetFlagInZero();
 				break;
 			}
 
 			case CMD_SETOUTPUT:
 			{
 				SetPWM_JF8();
+				SetFlagInZero();
 				break;
 			}
 

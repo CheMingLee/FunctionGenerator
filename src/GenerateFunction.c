@@ -11,9 +11,9 @@ static void SetFlagOutOne();
 /*************************************************************************/
 
 // input
-float g_dJF8_PWM_Frequency[16]; // Hz
-float g_dJF8_PWM_Duty[16]; // 0-100
-float g_dJF8_PWM_Delay[16]; // s
+extern float g_dJF8_PWM_Frequency[16]; // Hz
+extern float g_dJF8_PWM_Duty[16]; // 0-100
+extern float g_dJF8_PWM_Delay[16]; // s
 
 // output
 extern u32 g_outputdata_JF8;
@@ -23,28 +23,30 @@ extern u32 g_outputdata_JF8;
 static void SetPWM_JF8()
 {
 	u32 mask;
-	int i;
+	u32 u32Channel;
+	float fFreq, fDuty, fDelay;
 
-	for (i = 0; i < 16; i++)
+	u32Channel = Xil_In32(IO_ADDR_BRAM_IN_DATA);
+	memcpy(&fFreq, IO_ADDR_BRAM_IN_DATA + 4, 4);
+	memcpy(&fDuty, IO_ADDR_BRAM_IN_DATA + 8, 4);
+	memcpy(&fDelay, IO_ADDR_BRAM_IN_DATA + 12, 4);
+	g_dJF8_PWM_Frequency[u32Channel] = fFreq;
+	g_dJF8_PWM_Duty[u32Channel] = fDuty;
+	g_dJF8_PWM_Delay[u32Channel] = fDelay;
+
+	g_outputdata_JF8 = Xil_In32(IO_ADDR_OUTPUT_STATUS);
+	mask = 1 << u32Channel;
+
+	if (g_dJF8_PWM_Frequency[u32Channel] > 0)
 	{
-		g_dJF8_PWM_Frequency[i] = Xil_In32(IO_ADDR_BRAM_IN_DATA);
-		g_dJF8_PWM_Duty[i] = Xil_In32(IO_ADDR_BRAM_IN_DATA + 4);
-		g_dJF8_PWM_Delay[i] = Xil_In32(IO_ADDR_BRAM_IN_DATA + 8);
-
-		g_outputdata_JF8 = Xil_In32(IO_ADDR_OUTPUT_STATUS);
-		mask = 1 << i;
-
-		if (g_dJF8_PWM_Frequency[i] > 0)
-		{
-			g_outputdata_JF8 |= mask;
-		}
-		else
-		{
-			g_outputdata_JF8 &= ~mask;
-		}
-
-		SetFlagInZero();
+		g_outputdata_JF8 |= mask;
 	}
+	else
+	{
+		g_outputdata_JF8 &= ~mask;
+	}
+
+	Xil_Out32(IO_ADDR_OUTPUT, g_outputdata_JF8);
 }
 
 /*************************************************************************/
@@ -64,9 +66,6 @@ static void SetLED()
 	uLedStatus = Xil_In32(IO_ADDR_LEDOUT_STATUS);
 	Xil_Out32(IO_ADDR_BRAM_OUT_DATA, uLedStatus);
 	Xil_Out32(IO_ADDR_BRAM_OUT_SIZE, sizeof(uLedStatus)+4);
-	
-	SetFlagInZero();
-	SetFlagOutOne();
 }
 
 /*************************************************************************/
