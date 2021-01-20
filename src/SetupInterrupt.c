@@ -9,7 +9,7 @@
 #define TTC_INTR_ID		    XPAR_XTTCPS_0_INTR
 #define INTC_DEVICE_ID		XPAR_SCUGIC_SINGLE_DEVICE_ID
 
-#define HZ_INTERRUPT		1000
+#define HZ_INTERRUPT		100
 
 typedef struct {
 	u32 OutputHz;	/* Output frequency */
