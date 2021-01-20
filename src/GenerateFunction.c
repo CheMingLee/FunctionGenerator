@@ -2,8 +2,16 @@
 
 /*************************************************************************/
 
+static void GetAppCmd();
 static void SetLED();
+static float* GetPWM_Params();
+static u32 GetPWM_CH_OnOff(bool bOnOff, u32 uOutStatus, u32 uCH);
 static void SetPWM_JF8();
+static void SetPWM_JF7();
+static float* GetAnal_Params();
+static void SetAnal_Function(int iCH);
+static void SetAnalog_1();
+static void SetAnalog_2();
 static bool CheckFlag();
 static void SetFlagInZero();
 static void SetFlagOutOne();
@@ -11,42 +19,197 @@ static void SetFlagOutOne();
 /*************************************************************************/
 
 // input
-extern float g_dJF8_PWM_Frequency[16]; // Hz
-extern float g_dJF8_PWM_Duty[16]; // 0-100
-extern float g_dJF8_PWM_Delay[16]; // s
+extern float g_fJF8_PWM_Frequency[16]; // Hz
+extern float g_fJF8_PWM_Duty[16]; // 0-100
+extern float g_fJF8_PWM_Delay[16]; // s
+extern float g_fJF7_PWM_Frequency[16]; // Hz
+extern float g_fJF7_PWM_Duty[16]; // 0-100
+extern float g_fJF7_PWM_Delay[16]; // s
+extern int g_iP2_FunctionType[2];
+extern float g_fP2_Anal_Freq[2]; // Hz
+extern float g_fP2_Anal_Amp[2]; // V
+extern float g_fP2_Anal_Ratio[2]; // 0-1
+extern float g_fP2_Anal_Delay[2]; // s
 
 // output
 extern u32 g_outputdata_JF8;
+extern u32 g_outputdata_JF7;
+extern u32 g_outputdata_P2[2];
 
 /*************************************************************************/
 
-static void SetPWM_JF8()
+static float* GetPWM_Params()
 {
-	u32 mask;
-	u32 u32Channel;
+	float fParams[3];
 	float fFreq, fDuty, fDelay;
 
-	u32Channel = Xil_In32(IO_ADDR_BRAM_IN_DATA);
 	memcpy(&fFreq, IO_ADDR_BRAM_IN_DATA + 4, 4);
 	memcpy(&fDuty, IO_ADDR_BRAM_IN_DATA + 8, 4);
 	memcpy(&fDelay, IO_ADDR_BRAM_IN_DATA + 12, 4);
-	g_dJF8_PWM_Frequency[u32Channel] = fFreq;
-	g_dJF8_PWM_Duty[u32Channel] = fDuty;
-	g_dJF8_PWM_Delay[u32Channel] = fDelay;
 
-	g_outputdata_JF8 = Xil_In32(IO_ADDR_OUTPUT_STATUS);
-	mask = 1 << u32Channel;
+	fParams[0] = fFreq;
+	fParams[1] = fDuty;
+	fParams[2] = fDelay;
 
-	if (g_dJF8_PWM_Frequency[u32Channel] > 0)
+	return fParams;
+}
+
+static u32 GetPWM_CH_OnOff(bool bOnOff, u32 uOutStatus, u32 uCH)
+{
+	u32 mask;
+	u32 uOutData;
+
+	uOutData = uOutStatus;
+	mask = 1 << uCH;
+
+	if (bOnOff)
 	{
-		g_outputdata_JF8 |= mask;
+		uOutData |= mask;
 	}
 	else
 	{
-		g_outputdata_JF8 &= ~mask;
+		uOutData &= ~mask;
+	}
+
+	return uOutData;
+}
+
+static void SetPWM_JF8()
+{
+	u32 u32Channel, u32OutStatus;
+	float* pParams;
+	
+	u32Channel = Xil_In32(IO_ADDR_BRAM_IN_DATA);
+
+	pParams = GetPWM_Params();
+
+	g_fJF8_PWM_Frequency[u32Channel] = pParams[0];
+	g_fJF8_PWM_Duty[u32Channel] = pParams[1];
+	g_fJF8_PWM_Delay[u32Channel] = pParams[2];
+
+	u32OutStatus = Xil_In32(IO_ADDR_OUTPUT_STATUS);
+	g_outputdata_JF8 = u32OutStatus;
+
+	if (pParams[0] <= 0.0 || pParams[1] <= 0.0)
+	{
+		g_outputdata_JF8 = GetPWM_CH_OnOff(false, u32OutStatus, u32Channel);
+	}
+	else
+	{
+		g_outputdata_JF8 = GetPWM_CH_OnOff(true, u32OutStatus, u32Channel);
 	}
 
 	Xil_Out32(IO_ADDR_OUTPUT, g_outputdata_JF8);
+}
+
+static void SetPWM_JF7()
+{
+	u32 u32Channel, u32OutStatus;
+	float* pParams;
+	
+	u32Channel = Xil_In32(IO_ADDR_BRAM_IN_DATA);
+
+	pParams = GetPWM_Params();
+
+	g_fJF7_PWM_Frequency[u32Channel] = pParams[0];
+	g_fJF7_PWM_Duty[u32Channel] = pParams[1];
+	g_fJF7_PWM_Delay[u32Channel] = pParams[2];
+
+	u32OutStatus = Xil_In32(IO_ADDR_OUTPUT_EX_STATUS);
+
+	if (pParams[0] <= 0.0 || pParams[1] <= 0.0)
+	{
+		g_outputdata_JF7 = GetPWM_CH_OnOff(false, u32OutStatus, u32Channel);
+	}
+	else
+	{
+		g_outputdata_JF7 = GetPWM_CH_OnOff(true, u32OutStatus, u32Channel);
+	}
+
+	Xil_Out32(IO_ADDR_OUTPUT_EX, g_outputdata_JF7);
+}
+
+/*************************************************************************/
+
+static float* GetAnal_Params()
+{
+	float fParams[4];
+	float fFreq, fAmp, fRatio, fDelay;
+
+	memcpy(&fFreq, IO_ADDR_BRAM_IN_DATA + 4, 4);
+	memcpy(&fAmp, IO_ADDR_BRAM_IN_DATA + 8, 4);
+	memcpy(&fRatio, IO_ADDR_BRAM_IN_DATA + 12, 4);
+	memcpy(&fDelay, IO_ADDR_BRAM_IN_DATA + 16, 4);
+
+	fParams[0] = fFreq;
+	fParams[1] = fAmp;
+	fParams[2] = fRatio;
+	fParams[3] = fDelay;
+
+	return fParams;
+}
+
+static void SetAnal_Function(int iCH)
+{
+	if (iCH == 0 || iCH == 1)
+	{
+		int iFuncType;
+		float* pParams;
+		u32 u32OutData;
+	
+		iFuncType = Xil_In32(IO_ADDR_BRAM_IN_DATA);
+		pParams = GetAnal_Params();
+
+		g_iP2_FunctionType[iCH] = iFuncType;
+		g_fP2_Anal_Freq[iCH] = pParams[0];
+		g_fP2_Anal_Amp[iCH] = pParams[1];
+		g_fP2_Anal_Ratio[iCH] = pParams[2];
+		g_fP2_Anal_Delay[iCH] = pParams[3];
+
+		u32OutData = round(65535.0 / 11.0 * pParams[1]);
+
+		switch (iFuncType)
+		{
+			case CLOSE_ANALOG:
+			{
+				u32OutData = 0;
+				break;
+			}
+
+			case SINE_ANALOG:
+			{
+				u32OutData = round(u32OutData / 2.0);
+				break;
+			}
+			
+			case TRIANGE_ANALOG:
+			{
+				break;
+			}
+
+			case SAWTOOTH_ANALOG:
+			{
+				break;
+			}
+
+			default:
+			{
+				break;
+			}
+		}
+
+		g_outputdata_P2[iCH] = u32OutData;
+	}
+}
+
+static void SetAnalog_1()
+{
+	SetAnal_Function(0);
+}
+
+static void SetAnalog_2()
+{
+	SetAnal_Function(1);
 }
 
 /*************************************************************************/
@@ -112,6 +275,61 @@ static void SetFlagOutOne()
 	uFlag = Xil_In32(IO_ADDR_BRAM_IN_FLAG);
 	uFlag |= mask;
 	Xil_Out32(IO_ADDR_BRAM_IN_FLAG, uFlag);
+}
+
+/*************************************************************************/
+
+static void GetAppCmd()
+{
+	if (CheckFlag())
+	{
+		u16 uCmd;
+		uCmd = Xil_In32(IO_ADDR_BRAM_IN_CMD);
+
+		switch (uCmd)
+		{
+			case CMD_SETLED:
+			{
+				SetLED();
+				SetFlagOutOne();
+				SetFlagInZero();
+				break;
+			}
+
+			case CMD_SETOUTPUT:
+			{
+				SetPWM_JF8();
+				SetFlagInZero();
+				break;
+			}
+
+			case CMD_SETOUTPUTEX:
+			{
+				SetPWM_JF7();
+				SetFlagInZero();
+				break;
+			}
+			
+			case CMD_SETANALOG1OUT:
+			{
+				SetAnalog_1();
+				SetFlagInZero();
+				break;
+			}
+
+			case CMD_SETANALOG2OUT:
+			{
+				SetAnalog_2();
+				SetFlagInZero();
+				break;
+			}
+
+			default:
+			{
+				break;
+			}
+		}
+	}
 }
 
 /*************************************************************************/

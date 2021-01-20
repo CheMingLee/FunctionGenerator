@@ -16,11 +16,17 @@
 #define IO_ADDR_BRAM_OUT_DATA       (XPAR_BRAM_0_BASEADDR + 268)
 
 // CMD define
-#define CMD_SETLED 0
-#define CMD_SETOUTPUT 1
-#define CMD_SETOUTPUTEX 2
-#define CMD_SETANALOG1OUT 3
-#define CMD_SETANALOG2OUT 4
+#define CMD_SETLED                  0
+#define CMD_SETOUTPUT               1
+#define CMD_SETOUTPUTEX             2
+#define CMD_SETANALOG1OUT           3
+#define CMD_SETANALOG2OUT           4
+
+// Analog function type define 
+#define CLOSE_ANALOG		        0
+#define SINE_ANALOG			        1
+#define TRIANGE_ANALOG		        2
+#define SAWTOOTH_ANALOG		        3
 
 // output define
 #define IO_ADDR_OUTPUT				(XPAR_IO_CONTROL_0_S00_AXI_BASEADDR + 0)
