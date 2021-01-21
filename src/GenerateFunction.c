@@ -3,6 +3,7 @@
 /*************************************************************************/
 
 static void GetAppCmd();
+static void GetRLEDtwinkle(u32 uCount);
 static void SetLED();
 static float* GetPWM_Params();
 static u32 GetPWM_CH_OnOff(bool bOnOff, u32 uOutStatus, u32 uCH);
@@ -17,6 +18,11 @@ static void SetFlagInZero();
 static void SetFlagOutOne();
 
 /*************************************************************************/
+
+// Time
+extern int g_iRLEDCount;
+extern u32 g_setRLED_output;
+extern u32 g_setYLED_output;
 
 // input
 extern float g_fJF8_PWM_Frequency[16]; // Hz
@@ -98,8 +104,6 @@ static void SetPWM_JF8()
 	{
 		g_outputdata_JF8 = GetPWM_CH_OnOff(true, u32OutStatus, u32Channel);
 	}
-
-	Xil_Out32(IO_ADDR_OUTPUT, g_outputdata_JF8);
 }
 
 static void SetPWM_JF7()
@@ -125,8 +129,6 @@ static void SetPWM_JF7()
 	{
 		g_outputdata_JF7 = GetPWM_CH_OnOff(true, u32OutStatus, u32Channel);
 	}
-
-	Xil_Out32(IO_ADDR_OUTPUT_EX, g_outputdata_JF7);
 }
 
 /*************************************************************************/
@@ -229,6 +231,20 @@ static void SetLED()
 	uLedStatus = Xil_In32(IO_ADDR_LEDOUT_STATUS);
 	Xil_Out32(IO_ADDR_BRAM_OUT_DATA, uLedStatus);
 	Xil_Out32(IO_ADDR_BRAM_OUT_SIZE, sizeof(uLedStatus)+4);
+}
+
+static void GetRLEDtwinkle(u32 uCount)
+{
+	if (g_iRLEDCount == uCount - 1)
+	{
+		g_iRLEDCount = 0;
+		g_setRLED_output = 1 - g_setRLED_output;
+		Xil_Out32(IO_ADDR_LEDOUT, g_setRLED_output + g_setYLED_output);
+	}
+	else
+	{
+		g_iRLEDCount++;
+	}
 }
 
 /*************************************************************************/
