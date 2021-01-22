@@ -42,4 +42,4 @@
 
 // math define
 #define PI 							acos(-1)
-#define UNIT_TIME 					10000000         // Unit: 0.1 microsecond
+#define SECOND_TO_USECOND 			1000000         // second to microsecond

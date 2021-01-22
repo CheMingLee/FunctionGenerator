@@ -89,8 +89,6 @@ static void TickHandler(void *CallBackRef)
 
 	StatusEvent = XTtcPs_GetInterruptStatus((XTtcPs *)CallBackRef);
 	XTtcPs_ClearInterruptStatus((XTtcPs *)CallBackRef, StatusEvent);
-	
-	GetRLEDtwinkle(50);
 
 	GetAppCmd();
 }

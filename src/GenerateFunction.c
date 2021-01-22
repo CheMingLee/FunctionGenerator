@@ -25,17 +25,21 @@ extern u32 g_setRLED_output;
 extern u32 g_setYLED_output;
 
 // input
-extern float g_fJF8_PWM_Frequency[16]; // Hz
-extern float g_fJF8_PWM_Duty[16]; // 0-100
-extern float g_fJF8_PWM_Delay[16]; // s
-extern float g_fJF7_PWM_Frequency[16]; // Hz
-extern float g_fJF7_PWM_Duty[16]; // 0-100
-extern float g_fJF7_PWM_Delay[16]; // s
+extern float g_fJF8_PWM_Frequency[16];	// Hz
+extern float g_fJF8_PWM_Duty[16];		// 0-100
+extern float g_fJF8_PWM_Delay[16];		// s
+extern float g_fJF7_PWM_Frequency[16];	// Hz
+extern float g_fJF7_PWM_Duty[16];		// 0-100
+extern float g_fJF7_PWM_Delay[16];		// s
 extern int g_iP2_FunctionType[2];
-extern float g_fP2_Anal_Freq[2]; // Hz
-extern float g_fP2_Anal_Amp[2]; // V
-extern float g_fP2_Anal_Ratio[2]; // 0-1
-extern float g_fP2_Anal_Delay[2]; // s
+extern float g_fP2_Anal_Freq[2];		// Hz
+extern float g_fP2_Anal_Amp[2];			// V
+extern float g_fP2_Anal_Ratio[2];		// 0-1
+extern float g_fP2_Anal_Delay[2];		// s
+
+// PWM
+extern double g_dJF8_PWM_Ttotal[16];		// s
+extern double g_dJF8_PWM_Ton[16];		// s, initial to Toff
 
 // output
 extern u32 g_outputdata_JF8;
@@ -93,16 +97,10 @@ static void SetPWM_JF8()
 	g_fJF8_PWM_Duty[u32Channel] = pParams[1];
 	g_fJF8_PWM_Delay[u32Channel] = pParams[2];
 
-	u32OutStatus = Xil_In32(IO_ADDR_OUTPUT_STATUS);
-	g_outputdata_JF8 = u32OutStatus;
-
-	if (pParams[0] <= 0.0 || pParams[1] <= 0.0)
+	if (pParams[0] > 0.0 && pParams[1] > 0.0)
 	{
-		g_outputdata_JF8 = GetPWM_CH_OnOff(false, u32OutStatus, u32Channel);
-	}
-	else
-	{
-		g_outputdata_JF8 = GetPWM_CH_OnOff(true, u32OutStatus, u32Channel);
+		g_dJF8_PWM_Ttotal[u32Channel] = (double)(1.0 / g_fJF8_PWM_Frequency[u32Channel]);
+		g_dJF8_PWM_Ton[u32Channel] = (double)(g_fJF8_PWM_Duty[u32Channel] * 0.01) * g_dJF8_PWM_Ttotal[u32Channel];
 	}
 }
 
