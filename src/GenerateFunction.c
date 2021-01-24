@@ -20,26 +20,27 @@ static void SetFlagOutOne();
 /*************************************************************************/
 
 // Time
-extern int g_iRLEDCount;
-extern u32 g_setRLED_output;
-extern u32 g_setYLED_output;
+extern XTime g_XT_JF8_Delay_Start, g_XT_JF7_Delay_Start;
+extern XTime g_XT_P2Ch1_Delay_Start, g_XT_P2Ch2_Delay_Start;
 
 // input
-extern float g_fJF8_PWM_Frequency[16];	// Hz
-extern float g_fJF8_PWM_Duty[16];		// 0-100
-extern float g_fJF8_PWM_Delay[16];		// s
-extern float g_fJF7_PWM_Frequency[16];	// Hz
-extern float g_fJF7_PWM_Duty[16];		// 0-100
-extern float g_fJF7_PWM_Delay[16];		// s
+extern float g_fJF8_PWM_Frequency[16];		// Hz
+extern float g_fJF8_PWM_Duty[16];			// 0-100
+extern float g_fJF8_PWM_Delay[16];			// s
+extern float g_fJF7_PWM_Frequency[16];		// Hz
+extern float g_fJF7_PWM_Duty[16];			// 0-100
+extern float g_fJF7_PWM_Delay[16];			// s
 extern int g_iP2_FunctionType[2];
-extern float g_fP2_Anal_Freq[2];		// Hz
-extern float g_fP2_Anal_Amp[2];			// V
-extern float g_fP2_Anal_Ratio[2];		// 0-1
-extern float g_fP2_Anal_Delay[2];		// s
+extern float g_fP2_Anal_Freq[2];			// Hz
+extern float g_fP2_Anal_Amp[2];				// V
+extern float g_fP2_Anal_Ratio[2];			// 0-1
+extern float g_fP2_Anal_Delay[2];			// s
 
 // PWM
 extern double g_dJF8_PWM_Ttotal[16];		// s
-extern double g_dJF8_PWM_Ton[16];		// s, initial to Toff
+extern double g_dJF8_PWM_Ton[16];			// s
+extern double g_dJF7_PWM_Ttotal[16];		// s
+extern double g_dJF7_PWM_Ton[16];			// s
 
 // output
 extern u32 g_outputdata_JF8;
@@ -86,7 +87,7 @@ static u32 GetPWM_CH_OnOff(bool bOnOff, u32 uOutStatus, u32 uCH)
 
 static void SetPWM_JF8()
 {
-	u32 u32Channel, u32OutStatus;
+	u32 u32Channel;
 	float* pParams;
 	
 	u32Channel = Xil_In32(IO_ADDR_BRAM_IN_DATA);
@@ -106,7 +107,7 @@ static void SetPWM_JF8()
 
 static void SetPWM_JF7()
 {
-	u32 u32Channel, u32OutStatus;
+	u32 u32Channel;
 	float* pParams;
 	
 	u32Channel = Xil_In32(IO_ADDR_BRAM_IN_DATA);
@@ -117,15 +118,10 @@ static void SetPWM_JF7()
 	g_fJF7_PWM_Duty[u32Channel] = pParams[1];
 	g_fJF7_PWM_Delay[u32Channel] = pParams[2];
 
-	u32OutStatus = Xil_In32(IO_ADDR_OUTPUT_EX_STATUS);
-
-	if (pParams[0] <= 0.0 || pParams[1] <= 0.0)
+	if (pParams[0] > 0.0 && pParams[1] > 0.0)
 	{
-		g_outputdata_JF7 = GetPWM_CH_OnOff(false, u32OutStatus, u32Channel);
-	}
-	else
-	{
-		g_outputdata_JF7 = GetPWM_CH_OnOff(true, u32OutStatus, u32Channel);
+		g_dJF7_PWM_Ttotal[u32Channel] = (double)(1.0 / g_fJF7_PWM_Frequency[u32Channel]);
+		g_dJF7_PWM_Ton[u32Channel] = (double)(g_fJF7_PWM_Duty[u32Channel] * 0.01) * g_dJF7_PWM_Ttotal[u32Channel];
 	}
 }
 
@@ -149,13 +145,12 @@ static float* GetAnal_Params()
 	return fParams;
 }
 
-static void SetAnal_Function(int iCH)
+static void SetAnal_P2(int iCH)
 {
 	if (iCH == 0 || iCH == 1)
 	{
 		int iFuncType;
 		float* pParams;
-		u32 u32OutData;
 	
 		iFuncType = Xil_In32(IO_ADDR_BRAM_IN_DATA);
 		pParams = GetAnal_Params();
@@ -165,51 +160,7 @@ static void SetAnal_Function(int iCH)
 		g_fP2_Anal_Amp[iCH] = pParams[1];
 		g_fP2_Anal_Ratio[iCH] = pParams[2];
 		g_fP2_Anal_Delay[iCH] = pParams[3];
-
-		u32OutData = round(65535.0 / 11.0 * pParams[1]);
-
-		switch (iFuncType)
-		{
-			case CLOSE_ANALOG:
-			{
-				u32OutData = 0;
-				break;
-			}
-
-			case SINE_ANALOG:
-			{
-				u32OutData = round(u32OutData / 2.0);
-				break;
-			}
-			
-			case TRIANGE_ANALOG:
-			{
-				break;
-			}
-
-			case SAWTOOTH_ANALOG:
-			{
-				break;
-			}
-
-			default:
-			{
-				break;
-			}
-		}
-
-		g_outputdata_P2[iCH] = u32OutData;
 	}
-}
-
-static void SetAnalog_1()
-{
-	SetAnal_Function(0);
-}
-
-static void SetAnalog_2()
-{
-	SetAnal_Function(1);
 }
 
 /*************************************************************************/
@@ -229,20 +180,6 @@ static void SetLED()
 	uLedStatus = Xil_In32(IO_ADDR_LEDOUT_STATUS);
 	Xil_Out32(IO_ADDR_BRAM_OUT_DATA, uLedStatus);
 	Xil_Out32(IO_ADDR_BRAM_OUT_SIZE, sizeof(uLedStatus)+4);
-}
-
-static void GetRLEDtwinkle(u32 uCount)
-{
-	if (g_iRLEDCount == uCount - 1)
-	{
-		g_iRLEDCount = 0;
-		g_setRLED_output = 1 - g_setRLED_output;
-		Xil_Out32(IO_ADDR_LEDOUT, g_setRLED_output + g_setYLED_output);
-	}
-	else
-	{
-		g_iRLEDCount++;
-	}
 }
 
 /*************************************************************************/
@@ -314,6 +251,7 @@ static void GetAppCmd()
 			{
 				SetPWM_JF8();
 				SetFlagInZero();
+				XTime_GetTime(&g_XT_JF8_Delay_Start);
 				break;
 			}
 
@@ -321,20 +259,23 @@ static void GetAppCmd()
 			{
 				SetPWM_JF7();
 				SetFlagInZero();
+				XTime_GetTime(&g_XT_JF7_Delay_Start);
 				break;
 			}
 			
 			case CMD_SETANALOG1OUT:
 			{
-				SetAnalog_1();
+				SetAnal_P2(0);
 				SetFlagInZero();
+				XTime_GetTime(&g_XT_P2Ch1_Delay_Start);
 				break;
 			}
 
 			case CMD_SETANALOG2OUT:
 			{
-				SetAnalog_2();
+				SetAnal_P2(1);
 				SetFlagInZero();
+				XTime_GetTime(&g_XT_P2Ch2_Delay_Start);
 				break;
 			}
 
@@ -345,6 +286,22 @@ static void GetAppCmd()
 		}
 	}
 }
+
+/*************************************************************************/
+
+// static void GetRLEDtwinkle(u32 uCount)
+// {
+// 	if (g_iRLEDCount == uCount - 1)
+// 	{
+// 		g_iRLEDCount = 0;
+// 		g_setRLED_output = 1 - g_setRLED_output;
+// 		Xil_Out32(IO_ADDR_LEDOUT, g_setRLED_output + g_setYLED_output);
+// 	}
+// 	else
+// 	{
+// 		g_iRLEDCount++;
+// 	}
+// }
 
 /*************************************************************************/
 
