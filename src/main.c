@@ -3,63 +3,37 @@
 /*************************************************************************/
 
 // SetupInterrupt.c
-void SetupInterrupt(void);
-void SetupInterruptSystem(XScuGic *GicInstancePtr, XTtcPs *TtcPsInt);
-void TickHandler(void *CallBackRef);
-
-// GenerateFunction.c
-void GetAppCmd();
-void SetLED();
-float* GetPWM_Params();
-void SetPWM_JF8();
-void SetPWM_JF7();
-float* GetAnal_Params();
-void SetAnal_Function(int iCH);
-void SetAnalog_1();
-void SetAnalog_2();
-bool CheckFlag();
-void SetFlagInZero();
-void SetFlagOutOne();
+void SetupInterrupt();
 
 /*************************************************************************/
-
-// interrupt
-XTtcPs Timer;
-XScuGic Intc; 							//GIC
 
 // Time
 XTime g_XT_Start, g_XT_End;
 XTime g_XT_JF8_Delay_Start, g_XT_JF7_Delay_Start;
 XTime g_XT_P2Ch1_Delay_Start, g_XT_P2Ch2_Delay_Start;
-XTime g_XT_Analog_Delay_Start;
+XTime g_XT_PWM_Delay_Start, g_XT_Analog_Delay_Start;
 
 // input
-float g_fJF8_PWM_Frequency[16];			// Hz
-float g_fJF8_PWM_Duty[16];				// 0-100
-float g_fJF8_PWM_Delay[16];				// s
-float g_fJF7_PWM_Frequency[16];			// Hz
-float g_fJF7_PWM_Duty[16];				// 0-100
-float g_fJF7_PWM_Delay[16];				// s
+float g_fPWM_Frequency[32];			// Hz
+float g_fPWM_Duty[32];				// 0-100
+float g_fPWM_Delay[32];				// s
 int g_iP2_FunctionType[2];
-float g_fP2_Anal_Freq[2];				// Hz
-float g_fP2_Anal_Amp[2];				// V
-float g_fP2_Anal_Ratio[2];				// 0-1
-float g_fP2_Anal_Delay[2];				// s
+float g_fP2_Anal_Freq[2];			// Hz
+float g_fP2_Anal_Amp[2];			// V
+float g_fP2_Anal_Ratio[2];			// 0-1
+float g_fP2_Anal_Delay[2];			// s
 
 // PWM
-double g_dJF8_PWM_Ttotal[16];			// s
-double g_dJF8_PWM_Ton[16];				// s
-double g_dJF7_PWM_Ttotal[16];			// s
-double g_dJF7_PWM_Ton[16];				// s
+double g_dPWM_Ttotal[32];			// s
+double g_dPWM_Ton[32];				// s
 
 // Analog
-double g_dAnal_Period[2];				// s
-double g_dAnal_Omega[2];				// rad/s
+double g_dAnal_Period[2];			// s
+double g_dAnal_Omega[2];			// rad/s
 
 // output
 u32 g_uOutSetting[16];
-u32 g_uSetJF8Out[16];
-u32 g_uSetJF7Out[16];
+u32 g_uSetPWMOut[32];
 u32 g_outputdata_JF8;
 u32 g_outputdata_JF7;
 u32 g_outputdata_P2[2];
@@ -69,7 +43,7 @@ u32 g_outputdata_P2[2];
 void GetParamsInialization()
 {
 	int i;
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < 32; i++)
 	{
 		if (i < 2)
 		{
@@ -84,22 +58,20 @@ void GetParamsInialization()
 
 			g_outputdata_P2[i] = 0;
 		}
+
+		if (i < 16)
+		{
+			g_uOutSetting[i] = 1 << i;
+		}
 		
-		g_fJF8_PWM_Frequency[i] = 0.0;
-		g_fJF8_PWM_Duty[i] = 0.0;
-		g_fJF8_PWM_Delay[i] = 0.0;
-		g_fJF7_PWM_Frequency[i] = 0.0;
-		g_fJF7_PWM_Duty[i] = 0.0;
-		g_fJF7_PWM_Delay[i] = 0.0;
+		g_fPWM_Frequency[i] = 0.0;
+		g_fPWM_Duty[i] = 0.0;
+		g_fPWM_Delay[i] = 0.0;
 
-		g_dJF8_PWM_Ttotal[i] = 0.0;
-		g_dJF8_PWM_Ton[i] = 0.0;
-		g_dJF7_PWM_Ttotal[i] = 0.0;
-		g_dJF7_PWM_Ton[i] = 0.0;
+		g_dPWM_Ttotal[i] = 0.0;
+		g_dPWM_Ton[i] = 0.0;
 
-		g_uSetJF8Out[i] = 0;
-		g_uSetJF7Out[i] = 0;
-		g_uOutSetting[i] = 1 << i;
+		g_uSetPWMOut[i] = 0;
 	}
 
 	XTime_GetTime(&g_XT_Start);
@@ -107,76 +79,49 @@ void GetParamsInialization()
 
 /*************************************************************************/
 
-void GetPWM_JF8(int iCH)
+void GetPWM(int iCH)
 {
 	long long lPeriodCnt, lTonCnt, lDelayCnt;
+	int iCH_bit;
+
+	if (iCH < 16)
+	{
+		g_XT_PWM_Delay_Start = g_XT_JF8_Delay_Start;
+		iCH_bit = iCH;
+	}
+	else
+	{
+		g_XT_PWM_Delay_Start = g_XT_JF7_Delay_Start;
+		iCH_bit = iCH - 16;
+	}
 
 	XTime_GetTime(&g_XT_End);
 
-	lPeriodCnt = g_dJF8_PWM_Ttotal[iCH] * COUNTS_PER_SECOND;
-	lTonCnt = g_dJF8_PWM_Ton[iCH] * COUNTS_PER_SECOND;
-	lDelayCnt = g_fJF8_PWM_Delay[iCH] * COUNTS_PER_SECOND;
+	lPeriodCnt = g_dPWM_Ttotal[iCH] * COUNTS_PER_SECOND;
+	lTonCnt = g_dPWM_Ton[iCH] * COUNTS_PER_SECOND;
+	lDelayCnt = g_fPWM_Delay[iCH] * COUNTS_PER_SECOND;
 
-	if ((g_XT_End - g_XT_JF8_Delay_Start) >= lDelayCnt)
+	if ((g_XT_End - g_XT_PWM_Delay_Start) >= lDelayCnt)
 	{
-		if (g_fJF8_PWM_Frequency[iCH] > 0.0 && g_fJF8_PWM_Duty[iCH] > 0.0)
+		if (g_fPWM_Frequency[iCH] > 0.0 && g_fPWM_Duty[iCH] > 0.0)
 		{
 			if (((g_XT_End - g_XT_Start) % lPeriodCnt) >= lTonCnt)
 			{
-				g_uSetJF8Out[iCH] = 0;
+				g_uSetPWMOut[iCH] = 0;
 			}
 			else
 			{
-				g_uSetJF8Out[iCH] = g_uOutSetting[iCH];
+				g_uSetPWMOut[iCH] = g_uOutSetting[iCH_bit];
 			}
 		}
 		else
 		{
-			g_uSetJF8Out[iCH] = 0;
+			g_uSetPWMOut[iCH] = 0;
 		}
 	}
 	else
 	{
-		g_uSetJF8Out[iCH] = 0;
-	}
-	
-	if((g_XT_End - g_XT_Start) > (lPeriodCnt * 1000))
-	{
-		g_XT_Start += lPeriodCnt * 1000;
-	}
-}
-
-void GetPWM_JF7(int iCH)
-{
-	long long lPeriodCnt, lTonCnt, lDelayCnt;
-
-	XTime_GetTime(&g_XT_End);
-
-	lPeriodCnt = g_dJF7_PWM_Ttotal[iCH] * COUNTS_PER_SECOND;
-	lTonCnt = g_dJF7_PWM_Ton[iCH] * COUNTS_PER_SECOND;
-	lDelayCnt = g_fJF7_PWM_Delay[iCH] * COUNTS_PER_SECOND;
-
-	if ((g_XT_End - g_XT_JF7_Delay_Start) >= lDelayCnt)
-	{
-		if (g_fJF7_PWM_Frequency[iCH] > 0.0 && g_fJF7_PWM_Duty[iCH] > 0.0)
-		{
-			if (((g_XT_End - g_XT_Start) % lPeriodCnt) >= lTonCnt)
-			{
-				g_uSetJF7Out[iCH] = 0;
-			}
-			else
-			{
-				g_uSetJF7Out[iCH] = g_uOutSetting[iCH];
-			}
-		}
-		else
-		{
-			g_uSetJF7Out[iCH] = 0;
-		}
-	}
-	else
-	{
-		g_uSetJF7Out[iCH] = 0;
+		g_uSetPWMOut[iCH] = 0;
 	}
 	
 	if((g_XT_End - g_XT_Start) > (lPeriodCnt * 1000))
@@ -335,10 +280,16 @@ void GetAllOutput()
 	g_outputdata_JF8 = 0;
 	g_outputdata_JF7 = 0;
 
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < 32; i++)
 	{
-		g_outputdata_JF8 += g_uSetJF8Out[i];
-		g_outputdata_JF7 += g_uSetJF7Out[i];
+		if (i < 16)
+		{
+			g_outputdata_JF8 += g_uSetPWMOut[i];
+		}
+		else
+		{
+			g_outputdata_JF7 += g_uSetPWMOut[i];
+		}
 	}
 
 	Xil_Out32(IO_ADDR_OUTPUT, g_outputdata_JF8);
@@ -353,44 +304,15 @@ int main()
 {
 	GetParamsInialization();
 
-	// g_fJF8_PWM_Frequency[0] = 10000.0;
-	// g_fJF8_PWM_Duty[0] = 25.0;
-	// g_fJF8_PWM_Delay[0] = 0.0;
-	// g_dJF8_PWM_Ttotal[0] = (double)(1.0 / g_fJF8_PWM_Frequency[0]);
-	// g_dJF8_PWM_Ton[0] = (double)(g_fJF8_PWM_Duty[0] * 0.01) * g_dJF8_PWM_Ttotal[0];
-	
-	// g_fJF8_PWM_Frequency[2] = 10000.0;
-	// g_fJF8_PWM_Duty[2] = 45.0;
-	// g_fJF8_PWM_Delay[0] = 0.0;
-	// g_dJF8_PWM_Ttotal[2] = (double)(1.0 / g_fJF8_PWM_Frequency[2]);
-	// g_dJF8_PWM_Ton[2] = (double)(g_fJF8_PWM_Duty[2] * 0.01) * g_dJF8_PWM_Ttotal[2];
-
-	// g_iP2_FunctionType[0] = SAWTOOTH_ANALOG;
-	// g_fP2_Anal_Freq[0] = 10000.0;
-	// g_fP2_Anal_Amp[0] = 8.0;
-	// g_fP2_Anal_Ratio[0] = 0.3;
-	// g_fP2_Anal_Delay[0] = 2.0;
-	// g_dAnal_Period[0] = (double)(1.0 / g_fP2_Anal_Freq[0]);
-	// g_dAnal_Omega[0] = (double)(2.0 * PI * g_fP2_Anal_Freq[0]);
-
-	// g_iP2_FunctionType[1] = TRIANGE_ANALOG;
-	// g_fP2_Anal_Freq[1] = 10000.0;
-	// g_fP2_Anal_Amp[1] = 8.0;
-	// g_fP2_Anal_Ratio[1] = 0.5;
-	// g_fP2_Anal_Delay[1] = 2.0;
-	// g_dAnal_Period[1] = (double)(1.0 / g_fP2_Anal_Freq[1]);
-	// g_dAnal_Omega[1] = (double)(2.0 * PI * g_fP2_Anal_Freq[1]);
-
 	SetupInterrupt();
 
 	int i;
 
 	while (1)
 	{
-		for (i = 0; i < 16; i++)
+		for (i = 0; i < 32; i++)
 		{
-			GetPWM_JF8(i);
-			GetPWM_JF7(i);
+			GetPWM(i);
 		}
 
 		GetAnal_P2(0);

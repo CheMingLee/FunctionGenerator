@@ -3,30 +3,33 @@
 /*************************************************************************/
 
 typedef struct {
-	u32 OutputHz;				/* Output frequency */
-	u16 Interval;				/* Interval value */
-	u8 Prescaler;				/* Prescaler value */
-	u16 Options;				/* Option settings */
+	u32 OutputHz; /* Output frequency */
+	u16 Interval; /* Interval value */
+	u8 Prescaler; /* Prescaler value */
+	u16 Options; /* Option settings */
 } TmrCntrSetup;
 
 static TmrCntrSetup SettingsTable[1] = {
-	{HZ_INTERRUPT, 0, 0, 0},	/* Ticker timer counter initial setup, only output freq */
+	{HZ_INTERRUPT, 0, 0, 0}, /* Ticker timer counter initial setup, only output freq */
 };
 
 /*************************************************************************/
 
-extern XTtcPs Timer;
-extern XScuGic Intc;			//GIC
+XTtcPs Timer;
+XScuGic Intc; //GIC
 
 /*************************************************************************/
 
-void SetupInterrupt(void);
+// GenerateFunction.c
+void GetAppCmd();
+
+void SetupInterrupt();
 void SetupInterruptSystem(XScuGic *GicInstancePtr, XTtcPs *TtcPsInt);
 void TickHandler(void *CallBackRef);
 
 /*************************************************************************/
 
-void SetupInterrupt(void)
+void SetupInterrupt()
 {
 	XTtcPs_Config *Config;
 	TmrCntrSetup *TimerSetup;
@@ -39,8 +42,7 @@ void SetupInterrupt(void)
  	Config = XTtcPs_LookupConfig(TTC_DEVICE_ID);
  	XTtcPs_CfgInitialize(&Timer, Config, Config->BaseAddress);
 
- 	TimerSetup->Options |= (XTTCPS_OPTION_INTERVAL_MODE |
- 							XTTCPS_OPTION_WAVE_DISABLE);
+ 	TimerSetup->Options |= (XTTCPS_OPTION_INTERVAL_MODE | XTTCPS_OPTION_WAVE_DISABLE);
 
  	XTtcPs_SetOptions(&Timer, TimerSetup->Options);
  	XTtcPs_CalcIntervalFromFreq(&Timer, TimerSetup->OutputHz,&(TimerSetup->Interval), &(TimerSetup->Prescaler));
@@ -59,16 +61,12 @@ void SetupInterruptSystem(XScuGic *GicInstancePtr, XTtcPs *TtcPsInt)
 	//initialise the GIC
 	IntcConfig = XScuGic_LookupConfig(INTC_DEVICE_ID);
 
-	XScuGic_CfgInitialize(GicInstancePtr, IntcConfig,
-					IntcConfig->CpuBaseAddress);
+	XScuGic_CfgInitialize(GicInstancePtr, IntcConfig, IntcConfig->CpuBaseAddress);
 
 	//connect to the hardware
-	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT,
-				(Xil_ExceptionHandler)XScuGic_InterruptHandler,
-				GicInstancePtr);
+	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT, (Xil_ExceptionHandler)XScuGic_InterruptHandler, GicInstancePtr);
 
-	XScuGic_Connect(GicInstancePtr, TTC_INTR_ID,
-			(Xil_ExceptionHandler)TickHandler, (void *)TtcPsInt);
+	XScuGic_Connect(GicInstancePtr, TTC_INTR_ID, (Xil_ExceptionHandler)TickHandler, (void *)TtcPsInt);
 
 
 	XScuGic_Enable(GicInstancePtr, TTC_INTR_ID);
