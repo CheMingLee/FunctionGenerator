@@ -2,20 +2,18 @@
 
 /*************************************************************************/
 
-static void GetAppCmd();
-static void GetRLEDtwinkle(u32 uCount);
-static void SetLED();
-static float* GetPWM_Params();
-static u32 GetPWM_CH_OnOff(bool bOnOff, u32 uOutStatus, u32 uCH);
-static void SetPWM_JF8();
-static void SetPWM_JF7();
-static float* GetAnal_Params();
-static void SetAnal_Function(int iCH);
-static void SetAnalog_1();
-static void SetAnalog_2();
-static bool CheckFlag();
-static void SetFlagInZero();
-static void SetFlagOutOne();
+void GetAppCmd();
+void SetLED();
+float* GetPWM_Params();
+void SetPWM_JF8();
+void SetPWM_JF7();
+float* GetAnal_Params();
+void SetAnal_Function(int iCH);
+void SetAnalog_1();
+void SetAnalog_2();
+bool CheckFlag();
+void SetFlagInZero();
+void SetFlagOutOne();
 
 /*************************************************************************/
 
@@ -42,6 +40,10 @@ extern double g_dJF8_PWM_Ton[16];			// s
 extern double g_dJF7_PWM_Ttotal[16];		// s
 extern double g_dJF7_PWM_Ton[16];			// s
 
+// Analog
+extern double g_dAnal_Period[2];			// s
+extern double g_dAnal_Omega[2];				// rad/s
+
 // output
 extern u32 g_outputdata_JF8;
 extern u32 g_outputdata_JF7;
@@ -49,7 +51,7 @@ extern u32 g_outputdata_P2[2];
 
 /*************************************************************************/
 
-static float* GetPWM_Params()
+float* GetPWM_Params()
 {
 	float fParams[3];
 	float fFreq, fDuty, fDelay;
@@ -65,27 +67,7 @@ static float* GetPWM_Params()
 	return fParams;
 }
 
-static u32 GetPWM_CH_OnOff(bool bOnOff, u32 uOutStatus, u32 uCH)
-{
-	u32 mask;
-	u32 uOutData;
-
-	uOutData = uOutStatus;
-	mask = 1 << uCH;
-
-	if (bOnOff)
-	{
-		uOutData |= mask;
-	}
-	else
-	{
-		uOutData &= ~mask;
-	}
-
-	return uOutData;
-}
-
-static void SetPWM_JF8()
+void SetPWM_JF8()
 {
 	u32 u32Channel;
 	float* pParams;
@@ -105,7 +87,7 @@ static void SetPWM_JF8()
 	}
 }
 
-static void SetPWM_JF7()
+void SetPWM_JF7()
 {
 	u32 u32Channel;
 	float* pParams;
@@ -127,7 +109,7 @@ static void SetPWM_JF7()
 
 /*************************************************************************/
 
-static float* GetAnal_Params()
+float* GetAnal_Params()
 {
 	float fParams[4];
 	float fFreq, fAmp, fRatio, fDelay;
@@ -145,7 +127,7 @@ static float* GetAnal_Params()
 	return fParams;
 }
 
-static void SetAnal_P2(int iCH)
+void SetAnal_P2(int iCH)
 {
 	if (iCH == 0 || iCH == 1)
 	{
@@ -160,12 +142,19 @@ static void SetAnal_P2(int iCH)
 		g_fP2_Anal_Amp[iCH] = pParams[1];
 		g_fP2_Anal_Ratio[iCH] = pParams[2];
 		g_fP2_Anal_Delay[iCH] = pParams[3];
+
+		if (pParams[0] > 0.0 && pParams[1] > 0.0)
+		{
+			g_dAnal_Period[iCH] = (double)(1.0 / g_fP2_Anal_Freq[iCH]);
+			g_dAnal_Omega[iCH] = (double)(2.0 * PI * g_fP2_Anal_Freq[iCH]);
+		}
+		
 	}
 }
 
 /*************************************************************************/
 
-static void SetLED()
+void SetLED()
 {
 	u32 setLED_output;
 	u32 uLedStatus;
@@ -184,7 +173,7 @@ static void SetLED()
 
 /*************************************************************************/
 
-static bool CheckFlag()
+bool CheckFlag()
 {
 	bool bFlag;
 	u32 uFlag;
@@ -204,7 +193,7 @@ static bool CheckFlag()
 	return bFlag;
 }
 
-static void SetFlagInZero()
+void SetFlagInZero()
 {
 	u32 uFlag;
 	u32 mask;
@@ -216,7 +205,7 @@ static void SetFlagInZero()
 	Xil_Out32(IO_ADDR_BRAM_IN_FLAG, uFlag);
 }
 
-static void SetFlagOutOne()
+void SetFlagOutOne()
 {
 	u32 uFlag;
 	u32 mask;
@@ -230,7 +219,7 @@ static void SetFlagOutOne()
 
 /*************************************************************************/
 
-static void GetAppCmd()
+void GetAppCmd()
 {
 	if (CheckFlag())
 	{
@@ -288,79 +277,3 @@ static void GetAppCmd()
 }
 
 /*************************************************************************/
-
-// static void GetRLEDtwinkle(u32 uCount)
-// {
-// 	if (g_iRLEDCount == uCount - 1)
-// 	{
-// 		g_iRLEDCount = 0;
-// 		g_setRLED_output = 1 - g_setRLED_output;
-// 		Xil_Out32(IO_ADDR_LEDOUT, g_setRLED_output + g_setYLED_output);
-// 	}
-// 	else
-// 	{
-// 		g_iRLEDCount++;
-// 	}
-// }
-
-/*************************************************************************/
-
-// input
-// double g_dPWM_Frequency; // Hz
-// double g_dPWM_Duty; // 0-100
-// double dPWM_Toff; // Unit: 1 microsecond
-// double dPWM_Ton; // Unit: 1 microsecond
-// double g_dAnal_Frequency[2]; // Hz
-// double g_dAnal_Amp[2]; // V
-// double g_dSine_Omega; // rad per microsecond
-// int g_iTriangle_HalfPeriod; // Unit: 1 microsecond
-// int g_iSawtooth_Period; // Unit: 1 microsecond
-
-// output
-// u32 g_outputdata_Sine;
-// int g_outputdata_P2[2];
-// u32 g_outputdata_JF8;
-// int g_iOutput;
-// u32 g_mask;
-// int g_PWM_TickCount; // Unit: 1 microsecond
-// u32 g_Anal_TickCount[2]; // Unit: 1 microsecond
-
-// set input analog
-// g_dAnal_Frequency[0] = 10000.0;
-// g_dAnal_Frequency[1] = 10000.0;
-// g_dAnal_Amp[0] = 5.5;
-// g_dAnal_Amp[1] = 5.5;
-// g_dSine_Omega = 2.0 * PI * g_dAnal_Frequency[0] / UNIT_TIME;
-// g_iTriangle_HalfPeriod = round(1.0 / g_dAnal_Frequency[1] * 0.5 * UNIT_TIME);
-// g_iSawtooth_Period = round(1.0 / g_dAnal_Frequency[1] * UNIT_TIME);
-
-// Sine
-// if (g_dSine_Omega * g_Anal_TickCount[0] >= 2.0 * PI)
-// {
-//  	g_Anal_TickCount[0] = (g_dSine_Omega * g_Anal_TickCount[0] - 2.0 * PI) / g_dSine_Omega;
-// }
-// else
-// {
-//  	g_Anal_TickCount[0]++;
-// }
-// g_outputdata_P2[0] = round(32767.0 / 5.5 * (g_dAnal_Amp[0] * sin(g_dSine_Omega * g_Anal_TickCount[0]))) + 32767;
-
-// u32 GetSineWaveData(double dFreq, double dAmp)
-// {
-// 	static u32 iSineTickCount;
-// 	double dOmega = 2.0 * PI * dFreq / UNIT_TIME;
-// 	iSineTickCount++;
-
-// 	return round(32767.0 / 5.5 * (dAmp * sin(dOmega * iSineTickCount))) + 32767;
-// }
-
-// Triangle
-// g_Anal_TickCount[1]++;
-// g_outputdata_P2[1] = round(65535.0 / 11.0 * (2.0 * g_dAnal_Amp[1] / g_iTriangle_HalfPeriod) * (g_iTriangle_HalfPeriod - abs(g_Anal_TickCount[1] % (2 * g_iTriangle_HalfPeriod) - g_iTriangle_HalfPeriod)));
-
-// Sawtooth
-// g_Anal_TickCount[1]++;
-// g_outputdata_P2[1] = round(65535.0 / 11.0 * (2.0 * g_dAnal_Amp[1] / g_iSawtooth_Period) * (g_iSawtooth_Period - abs((g_Anal_TickCount[1] % g_iSawtooth_Period) - g_iSawtooth_Period)));
-
-
-

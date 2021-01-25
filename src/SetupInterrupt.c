@@ -1,37 +1,34 @@
-#include "Xscugic.h"
-#include "Xil_exception.h"
-#include "xttcps.h"
-#include "xparameters.h"
-#include "xtime_l.h"
-#include "GenerateFunction.c"
+#include "SettingDefine.h"
 
-#define TTC_DEVICE_ID	    XPAR_XTTCPS_0_DEVICE_ID
-#define TTC_INTR_ID		    XPAR_XTTCPS_0_INTR
-#define INTC_DEVICE_ID		XPAR_SCUGIC_SINGLE_DEVICE_ID
-
-#define HZ_INTERRUPT		100
+/*************************************************************************/
 
 typedef struct {
-	u32 OutputHz;	/* Output frequency */
-	u16 Interval;	/* Interval value */
-	u8 Prescaler;	/* Prescaler value */
-	u16 Options;	/* Option settings */
+	u32 OutputHz;				/* Output frequency */
+	u16 Interval;				/* Interval value */
+	u8 Prescaler;				/* Prescaler value */
+	u16 Options;				/* Option settings */
 } TmrCntrSetup;
 
 static TmrCntrSetup SettingsTable[1] = {
 	{HZ_INTERRUPT, 0, 0, 0},	/* Ticker timer counter initial setup, only output freq */
 };
 
-static XScuGic Intc; //GIC
+/*************************************************************************/
 
-static void SetupInterrupt(void);
-static void SetupInterruptSystem(XScuGic *GicInstancePtr, XTtcPs *TtcPsInt);
-static void TickHandler(void *CallBackRef);
+extern XTtcPs Timer;
+extern XScuGic Intc;			//GIC
 
-static void SetupInterrupt(void)
+/*************************************************************************/
+
+void SetupInterrupt(void);
+void SetupInterruptSystem(XScuGic *GicInstancePtr, XTtcPs *TtcPsInt);
+void TickHandler(void *CallBackRef);
+
+/*************************************************************************/
+
+void SetupInterrupt(void)
 {
 	XTtcPs_Config *Config;
-	XTtcPs Timer;
 	TmrCntrSetup *TimerSetup;
 
 	TimerSetup = &SettingsTable[TTC_DEVICE_ID];
@@ -54,7 +51,7 @@ static void SetupInterrupt(void)
     SetupInterruptSystem(&Intc, &Timer);
 }
 
-static void SetupInterruptSystem(XScuGic *GicInstancePtr, XTtcPs *TtcPsInt)
+void SetupInterruptSystem(XScuGic *GicInstancePtr, XTtcPs *TtcPsInt)
 {
 	XScuGic_Config *IntcConfig; //GIC config
 	Xil_ExceptionInit();
@@ -83,7 +80,7 @@ static void SetupInterruptSystem(XScuGic *GicInstancePtr, XTtcPs *TtcPsInt)
 	Xil_ExceptionEnableMask(XIL_EXCEPTION_IRQ);
 }
 
-static void TickHandler(void *CallBackRef)
+void TickHandler(void *CallBackRef)
 {
 	u32 StatusEvent;
 

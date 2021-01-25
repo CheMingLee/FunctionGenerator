@@ -2,10 +2,18 @@
 #include "stdbool.h"
 #include "math.h"
 #include "string.h"
-#include "xparameters.h"
-#include "sleep.h"
-#include "xtime_l.h"
 #include "xil_io.h"
+#include "Xscugic.h"
+#include "Xil_exception.h"
+#include "xttcps.h"
+#include "xparameters.h"
+#include "xtime_l.h"
+
+// interrupt
+#define TTC_DEVICE_ID	    	    XPAR_XTTCPS_0_DEVICE_ID
+#define TTC_INTR_ID		    	    XPAR_XTTCPS_0_INTR
+#define INTC_DEVICE_ID			    XPAR_SCUGIC_SINGLE_DEVICE_ID
+#define HZ_INTERRUPT			    100
 
 // BRAM define
 #define IO_ADDR_BRAM_IN_FLAG		(XPAR_BRAM_0_BASEADDR + 0)
@@ -42,4 +50,3 @@
 
 // math define
 #define PI 							acos(-1)
-#define SECOND_TO_USECOND 			1000000         // second to microsecond
