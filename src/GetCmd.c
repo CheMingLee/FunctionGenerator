@@ -3,6 +3,7 @@
 /*************************************************************************/
 
 void GetAppCmd();
+void GetLED(u16 usAsk);
 void SetLED();
 void SetPWM();
 void SetAnal_P2(int iCH);
@@ -73,6 +74,21 @@ void SetPWM()
 	}
 }
 
+void GetDigital_Freq()
+{
+	int iCH;
+	u16 usAsk;
+
+	memcpy(&iCH, (void *)IO_ADDR_BRAM_IN_DATA, 4);
+
+	usAsk = CMD_GETDIGITAL_FREQ;
+	Xil_Out16(IO_ADDR_BRAM_OUT_ASK, usAsk);
+	Xil_Out16(IO_ADDR_BRAM_OUT_ASK_SIZE, sizeof(usAsk));
+
+	memcpy((void *)IO_ADDR_BRAM_OUT_DATA, &g_fPWM_Frequency[iCH], 4);
+	Xil_Out32(IO_ADDR_BRAM_OUT_SIZE, sizeof(float)+4);
+}
+
 /*************************************************************************/
 
 void SetAnal_P2(int iCH)
@@ -103,21 +119,23 @@ void SetAnal_P2(int iCH)
 
 /*************************************************************************/
 
-void SetLED()
+void GetLED(u16 usAsk)
 {
-	u32 setLED_output;
 	u32 uLedStatus;
-	u16 usAsk;
-	
-	setLED_output = Xil_In32(IO_ADDR_BRAM_IN_DATA);
-	Xil_Out32(IO_ADDR_LEDOUT, setLED_output);
 
-	usAsk = CMD_SETLED;
 	Xil_Out16(IO_ADDR_BRAM_OUT_ASK, usAsk);
 	Xil_Out16(IO_ADDR_BRAM_OUT_ASK_SIZE, sizeof(usAsk));
 	uLedStatus = Xil_In32(IO_ADDR_LEDOUT_STATUS);
 	Xil_Out32(IO_ADDR_BRAM_OUT_DATA, uLedStatus);
 	Xil_Out32(IO_ADDR_BRAM_OUT_SIZE, sizeof(uLedStatus)+4);
+}
+
+void SetLED()
+{
+	u32 setLED_output;
+	
+	setLED_output = Xil_In32(IO_ADDR_BRAM_IN_DATA);
+	Xil_Out32(IO_ADDR_LEDOUT, setLED_output);
 }
 
 /*************************************************************************/
@@ -176,6 +194,7 @@ void GetAppCmd()
 			case CMD_SETLED:
 			{
 				SetLED();
+				GetLED(CMD_SETLED);
 				SetFlagOutOne();
 				break;
 			}
@@ -205,6 +224,20 @@ void GetAppCmd()
 			{
 				SetAnal_P2(1);
 				XTime_GetTime(&g_XT_P2Ch2_Delay_Start);
+				break;
+			}
+
+			case CMD_GETLED:
+			{
+				GetLED(CMD_GETLED);
+				SetFlagOutOne();
+				break;
+			}
+
+			case CMD_GETDIGITAL_FREQ:
+			{
+				GetDigital_Freq();
+				SetFlagOutOne();
 				break;
 			}
 
