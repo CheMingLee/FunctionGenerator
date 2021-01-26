@@ -20,7 +20,7 @@ XScuGic Intc; //GIC
 
 /*************************************************************************/
 
-// GenerateFunction.c
+// GetCmd.c
 void GetAppCmd();
 
 void SetupInterrupt();

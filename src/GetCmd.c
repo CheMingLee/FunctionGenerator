@@ -57,23 +57,27 @@ void SetPWM(int iChOffset)
 	// 0 -> JF8, 16 -> JF7
 	if (iChOffset == 0 || iChOffset == 16)
 	{
-		u32 u32Channel;
+		int iChannel;
 		Params_PWM PWM_Params;
 		
-		u32Channel = Xil_In32(IO_ADDR_BRAM_IN_DATA);
-		u32Channel += iChOffset;
-		memcpy(&PWM_Params.m_fFreq, IO_ADDR_BRAM_IN_DATA + 4, 4);
-		memcpy(&PWM_Params.m_fDuty, IO_ADDR_BRAM_IN_DATA + 8, 4);
-		memcpy(&PWM_Params.m_fDelay, IO_ADDR_BRAM_IN_DATA + 12, 4);
+		memcpy(&iChannel, (void *)IO_ADDR_BRAM_IN_DATA, 4);
+		if (iChOffset == 16)
+		{
+			iChannel += iChOffset;
+		}
+		
+		memcpy(&PWM_Params.m_fFreq, (void *)IO_ADDR_BRAM_IN_DATA + 4, 4);
+		memcpy(&PWM_Params.m_fDuty, (void *)IO_ADDR_BRAM_IN_DATA + 8, 4);
+		memcpy(&PWM_Params.m_fDelay, (void *)IO_ADDR_BRAM_IN_DATA + 12, 4);
 
-		g_fPWM_Frequency[u32Channel] = PWM_Params.m_fFreq;
-		g_fPWM_Duty[u32Channel] = PWM_Params.m_fDuty;
-		g_fPWM_Delay[u32Channel] = PWM_Params.m_fDelay;
+		g_fPWM_Frequency[iChannel] = PWM_Params.m_fFreq;
+		g_fPWM_Duty[iChannel] = PWM_Params.m_fDuty;
+		g_fPWM_Delay[iChannel] = PWM_Params.m_fDelay;
 
 		if (PWM_Params.m_fFreq > 0.0 && PWM_Params.m_fDuty > 0.0)
 		{
-			g_dPWM_Ttotal[u32Channel] = (double)(1.0 / PWM_Params.m_fFreq);
-			g_dPWM_Ton[u32Channel] = (double)(PWM_Params.m_fDuty * 0.01) * g_dPWM_Ttotal[u32Channel];
+			g_dPWM_Ttotal[iChannel] = (double)(1.0 / PWM_Params.m_fFreq);
+			g_dPWM_Ton[iChannel] = (double)(PWM_Params.m_fDuty * 0.01) * g_dPWM_Ttotal[iChannel];
 		}
 	}
 }
@@ -86,11 +90,11 @@ void SetAnal_P2(int iCH)
 	{
 		Params_Analog P2_Params;
 
-		P2_Params.m_iFuncType = Xil_In32(IO_ADDR_BRAM_IN_DATA);
-		memcpy(&P2_Params.m_fFreq, IO_ADDR_BRAM_IN_DATA + 4, 4);
-		memcpy(&P2_Params.m_fAmp, IO_ADDR_BRAM_IN_DATA + 8, 4);
-		memcpy(&P2_Params.m_fRatio, IO_ADDR_BRAM_IN_DATA + 12, 4);
-		memcpy(&P2_Params.m_fDelay, IO_ADDR_BRAM_IN_DATA + 16, 4);
+		memcpy(&P2_Params.m_iFuncType, (void *)IO_ADDR_BRAM_IN_DATA, 4);
+		memcpy(&P2_Params.m_fFreq, (void *)IO_ADDR_BRAM_IN_DATA + 4, 4);
+		memcpy(&P2_Params.m_fAmp, (void *)IO_ADDR_BRAM_IN_DATA + 8, 4);
+		memcpy(&P2_Params.m_fRatio, (void *)IO_ADDR_BRAM_IN_DATA + 12, 4);
+		memcpy(&P2_Params.m_fDelay, (void *)IO_ADDR_BRAM_IN_DATA + 16, 4);
 
 		g_iP2_FunctionType[iCH] = P2_Params.m_iFuncType;
 		g_fP2_Anal_Freq[iCH] = P2_Params.m_fFreq;
@@ -131,15 +135,11 @@ bool CheckFlag()
 {
 	bool bFlag;
 	u32 uFlag;
-	u32 mask;
-	int i;
 
 	uFlag = Xil_In32(IO_ADDR_BRAM_IN_FLAG);
-	i = 0;
-	mask = 1 << i;
 	bFlag = false;
 
-	if (uFlag == mask)
+	if (uFlag & 0x01)
 	{
 		bFlag = true;
 	}
@@ -178,7 +178,7 @@ void GetAppCmd()
 	if (CheckFlag())
 	{
 		u16 uCmd;
-		uCmd = Xil_In32(IO_ADDR_BRAM_IN_CMD);
+		uCmd = Xil_In16(IO_ADDR_BRAM_IN_CMD);
 
 		switch (uCmd)
 		{
@@ -186,14 +186,12 @@ void GetAppCmd()
 			{
 				SetLED();
 				SetFlagOutOne();
-				SetFlagInZero();
 				break;
 			}
 
 			case CMD_SETOUTPUT:
 			{
 				SetPWM(0);
-				SetFlagInZero();
 				XTime_GetTime(&g_XT_JF8_Delay_Start);
 				break;
 			}
@@ -201,7 +199,6 @@ void GetAppCmd()
 			case CMD_SETOUTPUTEX:
 			{
 				SetPWM(16);
-				SetFlagInZero();
 				XTime_GetTime(&g_XT_JF7_Delay_Start);
 				break;
 			}
@@ -209,7 +206,6 @@ void GetAppCmd()
 			case CMD_SETANALOG1OUT:
 			{
 				SetAnal_P2(0);
-				SetFlagInZero();
 				XTime_GetTime(&g_XT_P2Ch1_Delay_Start);
 				break;
 			}
@@ -217,7 +213,6 @@ void GetAppCmd()
 			case CMD_SETANALOG2OUT:
 			{
 				SetAnal_P2(1);
-				SetFlagInZero();
 				XTime_GetTime(&g_XT_P2Ch2_Delay_Start);
 				break;
 			}
@@ -227,6 +222,8 @@ void GetAppCmd()
 				break;
 			}
 		}
+
+		SetFlagInZero();
 	}
 }
 
