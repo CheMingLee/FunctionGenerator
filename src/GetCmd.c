@@ -4,7 +4,7 @@
 
 void GetAppCmd();
 void SetLED();
-void SetPWM(int iChOffset);
+void SetPWM();
 void SetAnal_P2(int iCH);
 bool CheckFlag();
 void SetFlagInZero();
@@ -52,33 +52,24 @@ extern double g_dAnal_Omega[2];			// rad/s
 
 /*************************************************************************/
 
-void SetPWM(int iChOffset)
+void SetPWM()
 {
-	// 0 -> JF8, 16 -> JF7
-	if (iChOffset == 0 || iChOffset == 16)
+	int iChannel;
+	Params_PWM PWM_Params;
+	
+	memcpy(&iChannel, (void *)IO_ADDR_BRAM_IN_DATA, 4);
+	memcpy(&PWM_Params.m_fFreq, (void *)IO_ADDR_BRAM_IN_DATA + 4, 4);
+	memcpy(&PWM_Params.m_fDuty, (void *)IO_ADDR_BRAM_IN_DATA + 8, 4);
+	memcpy(&PWM_Params.m_fDelay, (void *)IO_ADDR_BRAM_IN_DATA + 12, 4);
+
+	g_fPWM_Frequency[iChannel] = PWM_Params.m_fFreq;
+	g_fPWM_Duty[iChannel] = PWM_Params.m_fDuty;
+	g_fPWM_Delay[iChannel] = PWM_Params.m_fDelay;
+
+	if (PWM_Params.m_fFreq > 0.0 && PWM_Params.m_fDuty > 0.0)
 	{
-		int iChannel;
-		Params_PWM PWM_Params;
-		
-		memcpy(&iChannel, (void *)IO_ADDR_BRAM_IN_DATA, 4);
-		if (iChOffset == 16)
-		{
-			iChannel += iChOffset;
-		}
-		
-		memcpy(&PWM_Params.m_fFreq, (void *)IO_ADDR_BRAM_IN_DATA + 4, 4);
-		memcpy(&PWM_Params.m_fDuty, (void *)IO_ADDR_BRAM_IN_DATA + 8, 4);
-		memcpy(&PWM_Params.m_fDelay, (void *)IO_ADDR_BRAM_IN_DATA + 12, 4);
-
-		g_fPWM_Frequency[iChannel] = PWM_Params.m_fFreq;
-		g_fPWM_Duty[iChannel] = PWM_Params.m_fDuty;
-		g_fPWM_Delay[iChannel] = PWM_Params.m_fDelay;
-
-		if (PWM_Params.m_fFreq > 0.0 && PWM_Params.m_fDuty > 0.0)
-		{
-			g_dPWM_Ttotal[iChannel] = (double)(1.0 / PWM_Params.m_fFreq);
-			g_dPWM_Ton[iChannel] = (double)(PWM_Params.m_fDuty * 0.01) * g_dPWM_Ttotal[iChannel];
-		}
+		g_dPWM_Ttotal[iChannel] = (double)(1.0 / PWM_Params.m_fFreq);
+		g_dPWM_Ton[iChannel] = (double)(PWM_Params.m_fDuty * 0.01) * g_dPWM_Ttotal[iChannel];
 	}
 }
 
@@ -191,14 +182,14 @@ void GetAppCmd()
 
 			case CMD_SETOUTPUT:
 			{
-				SetPWM(0);
+				SetPWM();
 				XTime_GetTime(&g_XT_JF8_Delay_Start);
 				break;
 			}
 
 			case CMD_SETOUTPUTEX:
 			{
-				SetPWM(16);
+				SetPWM();
 				XTime_GetTime(&g_XT_JF7_Delay_Start);
 				break;
 			}
