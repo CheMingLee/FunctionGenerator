@@ -4,6 +4,7 @@
 
 void GetAppCmd();
 void GetLED(u16 usAsk);
+void GetChParams(u16 usAsk, u16 usSize);
 void SetLED();
 void SetPWM();
 void SetAnal_P2(int iCH);
@@ -74,19 +75,66 @@ void SetPWM()
 	}
 }
 
-void GetDigital_Freq()
+void GetChParams(u16 usAsk, u16 usSize)
 {
 	int iCH;
-	u16 usAsk;
+	char *pData;
 
 	memcpy(&iCH, (void *)IO_ADDR_BRAM_IN_DATA, 4);
 
-	usAsk = CMD_GETDIGITAL_FREQ;
-	Xil_Out16(IO_ADDR_BRAM_OUT_ASK, usAsk);
-	Xil_Out16(IO_ADDR_BRAM_OUT_ASK_SIZE, sizeof(usAsk));
+	switch (usAsk)
+	{
+		case CMD_GETDIGITAL_FREQ:
+		{
+			pData = (char *)&g_fPWM_Frequency[iCH];
+			break;
+		}
+		case CMD_GETDIGITAL_DUTY:
+		{
+			pData = (char *)&g_fPWM_Duty[iCH];
+			break;
+		}
+		case CMD_GETDIGITAL_DELAY:
+		{
+			pData = (char *)&g_fPWM_Delay[iCH];
+			break;
+		}
+		case CMD_GETANALOG_FUNCTION:
+		{
+			pData = (char *)&g_iP2_FunctionType[iCH];
+			break;
+		}
+		case CMD_GETANALOG_FREQ:
+		{
+			pData = (char *)&g_fP2_Anal_Freq[iCH];
+			break;
+		}
+		case CMD_GETANALOG_AMP:
+		{
+			pData = (char *)&g_fP2_Anal_Amp[iCH];
+			break;
+		}
+		case CMD_GETANALOG_RATIO:
+		{
+			pData = (char *)&g_fP2_Anal_Ratio[iCH];
+			break;
+		}
+		case CMD_GETANALOG_DELAY:
+		{
+			pData = (char *)&g_fP2_Anal_Delay[iCH];
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
 
-	memcpy((void *)IO_ADDR_BRAM_OUT_DATA, &g_fPWM_Frequency[iCH], 4);
-	Xil_Out32(IO_ADDR_BRAM_OUT_SIZE, sizeof(float)+4);
+	Xil_Out16(IO_ADDR_BRAM_OUT_ASK, usAsk);
+	Xil_Out16(IO_ADDR_BRAM_OUT_ASK_SIZE, usSize);
+
+	memcpy((void *)IO_ADDR_BRAM_OUT_DATA, pData, 4);
+	Xil_Out32(IO_ADDR_BRAM_OUT_SIZE, usSize+4);
 }
 
 /*************************************************************************/
@@ -124,7 +172,7 @@ void GetLED(u16 usAsk)
 	u32 uLedStatus;
 
 	Xil_Out16(IO_ADDR_BRAM_OUT_ASK, usAsk);
-	Xil_Out16(IO_ADDR_BRAM_OUT_ASK_SIZE, sizeof(usAsk));
+	Xil_Out16(IO_ADDR_BRAM_OUT_ASK_SIZE, sizeof(uLedStatus));
 	uLedStatus = Xil_In32(IO_ADDR_LEDOUT_STATUS);
 	Xil_Out32(IO_ADDR_BRAM_OUT_DATA, uLedStatus);
 	Xil_Out32(IO_ADDR_BRAM_OUT_SIZE, sizeof(uLedStatus)+4);
@@ -198,55 +246,89 @@ void GetAppCmd()
 				SetFlagOutOne();
 				break;
 			}
-
 			case CMD_SETOUTPUT:
 			{
 				SetPWM();
 				XTime_GetTime(&g_XT_JF8_Delay_Start);
 				break;
 			}
-
 			case CMD_SETOUTPUTEX:
 			{
 				SetPWM();
 				XTime_GetTime(&g_XT_JF7_Delay_Start);
 				break;
 			}
-			
 			case CMD_SETANALOG1OUT:
 			{
 				SetAnal_P2(0);
 				XTime_GetTime(&g_XT_P2Ch1_Delay_Start);
 				break;
 			}
-
 			case CMD_SETANALOG2OUT:
 			{
 				SetAnal_P2(1);
 				XTime_GetTime(&g_XT_P2Ch2_Delay_Start);
 				break;
 			}
-
 			case CMD_GETLED:
 			{
 				GetLED(CMD_GETLED);
 				SetFlagOutOne();
 				break;
 			}
-
 			case CMD_GETDIGITAL_FREQ:
 			{
-				GetDigital_Freq();
+				GetChParams(uCmd, sizeof(float));
 				SetFlagOutOne();
 				break;
 			}
-
+			case CMD_GETDIGITAL_DUTY:
+			{
+				GetChParams(uCmd, sizeof(float));
+				SetFlagOutOne();
+				break;
+			}
+			case CMD_GETDIGITAL_DELAY:
+			{
+				GetChParams(uCmd, sizeof(float));
+				SetFlagOutOne();
+				break;
+			}
+			case CMD_GETANALOG_FUNCTION:
+			{
+				GetChParams(uCmd, sizeof(int));
+				SetFlagOutOne();
+				break;
+			}
+			case CMD_GETANALOG_FREQ:
+			{
+				GetChParams(uCmd, sizeof(float));
+				SetFlagOutOne();
+				break;
+			}
+			case CMD_GETANALOG_AMP:
+			{
+				GetChParams(uCmd, sizeof(float));
+				SetFlagOutOne();
+				break;
+			}
+			case CMD_GETANALOG_RATIO:
+			{
+				GetChParams(uCmd, sizeof(float));
+				SetFlagOutOne();
+				break;
+			}
+			case CMD_GETANALOG_DELAY:
+			{
+				GetChParams(uCmd, sizeof(float));
+				SetFlagOutOne();
+				break;
+			} 
 			default:
 			{
 				break;
 			}
 		}
-
 		SetFlagInZero();
 	}
 }

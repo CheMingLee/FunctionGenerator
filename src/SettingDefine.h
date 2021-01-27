@@ -13,7 +13,7 @@
 #define TTC_DEVICE_ID	    	    XPAR_XTTCPS_0_DEVICE_ID
 #define TTC_INTR_ID		    	    XPAR_XTTCPS_0_INTR
 #define INTC_DEVICE_ID			    XPAR_SCUGIC_SINGLE_DEVICE_ID
-#define HZ_INTERRUPT			    100
+#define HZ_INTERRUPT			    1000
 
 // BRAM define
 #define IO_ADDR_BRAM_IN_FLAG		(XPAR_BRAM_0_BASEADDR + 0)
@@ -25,13 +25,12 @@
 #define IO_ADDR_BRAM_OUT_DATA       (XPAR_BRAM_0_BASEADDR + 268)
 
 // CMD define
-#define CMD_SETLED                  0
-#define CMD_SETOUTPUT               1
-#define CMD_SETOUTPUTEX             2
-#define CMD_SETANALOG1OUT           3
-#define CMD_SETANALOG2OUT           4
-#define CMD_GETLED                  5
-#define CMD_GETDIGITAL_FREQ         6
+#define CMD_SETLED          0
+#define CMD_SETDIGITAL      1
+#define CMD_SETANALOG       2
+#define CMD_GETLED          3
+#define CMD_GETDIGITAL      4
+#define CMD_GETANALOG       5
 
 // Analog function type define 
 #define CLOSE_ANALOG		        0
