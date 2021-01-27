@@ -9,11 +9,15 @@ void SetupInterrupt();
 
 // Time
 XTime g_XT_Start, g_XT_End;
-XTime g_XT_JF8_Delay_Start, g_XT_JF7_Delay_Start;
-XTime g_XT_P2Ch1_Delay_Start, g_XT_P2Ch2_Delay_Start;
-XTime g_XT_PWM_Delay_Start, g_XT_Analog_Delay_Start;
+XTime g_XT_Delay_Start;
+XTime g_XT_RunTime_Start, g_XT_RunTime_End;
+double g_dRunTime;
+
+// flag
+bool g_bflag_start;
 
 // input
+int g_iPWM_flag[32];
 float g_fPWM_Frequency[32];			// Hz
 float g_fPWM_Duty[32];				// 0-100
 float g_fPWM_Delay[32];				// s
@@ -64,6 +68,7 @@ void GetParamsInialization()
 			g_uOutSetting[i] = 1 << i;
 		}
 		
+		g_iPWM_flag[i] = 0;
 		g_fPWM_Frequency[i] = 0.0;
 		g_fPWM_Duty[i] = 0.0;
 		g_fPWM_Delay[i] = 0.0;
@@ -73,6 +78,9 @@ void GetParamsInialization()
 
 		g_uSetPWMOut[i] = 0;
 	}
+
+	g_outputdata_JF8 = 0;
+	g_outputdata_JF7 = 0;
 
 	XTime_GetTime(&g_XT_Start);
 }
@@ -86,12 +94,10 @@ void GetPWM(int iCH)
 
 	if (iCH < 16)
 	{
-		g_XT_PWM_Delay_Start = g_XT_JF8_Delay_Start;
 		iCH_bit = iCH;
 	}
 	else
 	{
-		g_XT_PWM_Delay_Start = g_XT_JF7_Delay_Start;
 		iCH_bit = iCH - 16;
 	}
 
@@ -101,7 +107,7 @@ void GetPWM(int iCH)
 	lTonCnt = g_dPWM_Ton[iCH] * COUNTS_PER_SECOND;
 	lDelayCnt = g_fPWM_Delay[iCH] * COUNTS_PER_SECOND;
 
-	if ((g_XT_End - g_XT_PWM_Delay_Start) >= lDelayCnt)
+	if ((g_XT_End - g_XT_Delay_Start) >= lDelayCnt)
 	{
 		if (g_fPWM_Frequency[iCH] > 0.0 && g_fPWM_Duty[iCH] > 0.0)
 		{
@@ -137,15 +143,6 @@ void GetAnal_Sine(int iCH)
 	long long lPeriodCnt, lDelayCnt;
 	double dTimeSeconds;
 	u32 uOutData;
-
-	if (iCH == 0)
-	{
-		g_XT_Analog_Delay_Start = g_XT_P2Ch1_Delay_Start;
-	}
-	else if (iCH == 1)
-	{
-		g_XT_Analog_Delay_Start = g_XT_P2Ch2_Delay_Start;
-	}
 	
 	if (iCH == 0 || iCH == 1)
 	{
@@ -154,7 +151,7 @@ void GetAnal_Sine(int iCH)
 		lPeriodCnt = g_dAnal_Period[iCH] * COUNTS_PER_SECOND;
 		lDelayCnt = g_fP2_Anal_Delay[iCH] * COUNTS_PER_SECOND;
 
-		if ((g_XT_End - g_XT_Analog_Delay_Start) >= lDelayCnt)
+		if ((g_XT_End - g_XT_Delay_Start) >= lDelayCnt)
 		{
 			if (g_fP2_Anal_Freq[iCH] > 0.0 && g_fP2_Anal_Amp[iCH] > 0.0)
 			{
@@ -185,15 +182,6 @@ void GetAnal_Sawtooth(int iCH)
 	long long lPeriodCnt, lRatioPeriodCnt, lDownRatioPeriodCnt, lDelayCnt, lTimeCnt;
 	u32 uOutData;
 
-	if (iCH == 0)
-	{
-		g_XT_Analog_Delay_Start = g_XT_P2Ch1_Delay_Start;
-	}
-	else if (iCH == 1)
-	{
-		g_XT_Analog_Delay_Start = g_XT_P2Ch2_Delay_Start;
-	}
-	
 	if (iCH == 0 || iCH == 1)
 	{
 		XTime_GetTime(&g_XT_End);
@@ -203,7 +191,7 @@ void GetAnal_Sawtooth(int iCH)
 		lDownRatioPeriodCnt = lPeriodCnt - lRatioPeriodCnt;
 		lDelayCnt = g_fP2_Anal_Delay[iCH] * COUNTS_PER_SECOND;
 
-		if ((g_XT_End - g_XT_Analog_Delay_Start) >= lDelayCnt)
+		if ((g_XT_End - g_XT_Delay_Start) >= lDelayCnt)
 		{
 			if (g_fP2_Anal_Freq[iCH] > 0.0 && g_fP2_Anal_Amp[iCH] > 0.0)
 			{
@@ -276,22 +264,6 @@ void GetAnal_P2(int iCH)
 
 void GetAllOutput()
 {	
-	int i;
-	g_outputdata_JF8 = 0;
-	g_outputdata_JF7 = 0;
-
-	for (i = 0; i < 32; i++)
-	{
-		if (i < 16)
-		{
-			g_outputdata_JF8 += g_uSetPWMOut[i];
-		}
-		else
-		{
-			g_outputdata_JF7 += g_uSetPWMOut[i];
-		}
-	}
-
 	Xil_Out32(IO_ADDR_OUTPUT, g_outputdata_JF8);
 	Xil_Out32(IO_ADDR_OUTPUT_EX, g_outputdata_JF7);
 	Xil_Out32(LCTRL_ADDR_ANALOG1_OUT, g_outputdata_P2[0]);
@@ -307,18 +279,66 @@ int main()
 	SetupInterrupt();
 
 	int i;
+	g_bflag_start = false;
 
 	while (1)
 	{
-		for (i = 0; i < 32; i++)
+		XTime_GetTime(&g_XT_RunTime_Start);
+
+		if (g_bflag_start)
 		{
-			GetPWM(i);
+			g_outputdata_JF8 = 0;
+			g_outputdata_JF7 = 0;
+
+			for (i = 0; i < 32; i++)
+			{
+				if (g_iPWM_flag[i] > 0)
+				{
+					GetPWM(i);
+				}
+				else
+				{
+					g_uSetPWMOut[i] = 0;
+				}
+
+				if (i < 16)
+				{
+					g_outputdata_JF8 += g_uSetPWMOut[i];
+				}
+				else
+				{
+					g_outputdata_JF7 += g_uSetPWMOut[i];
+				}
+			}
+
+			if (g_iP2_FunctionType[0] > 0)
+			{
+				GetAnal_P2(0);
+			}
+			else
+			{
+				g_outputdata_P2[0] = 0;
+			}
+
+			if (g_iP2_FunctionType[1] > 0)
+			{
+				GetAnal_P2(1);
+			}
+			else
+			{
+				g_outputdata_P2[1] = 0;
+			}
+		}
+		else
+		{
+			GetParamsInialization();
 		}
 
-		GetAnal_P2(0);
-		GetAnal_P2(1);
-
 		GetAllOutput();
+
+		XTime_GetTime(&g_XT_RunTime_End);
+
+		g_dRunTime = (double)(g_XT_RunTime_End - g_XT_RunTime_Start) / (double)COUNTS_PER_SECOND * 1000000.0;
 	}
 
 	return 0;

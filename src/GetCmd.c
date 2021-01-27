@@ -2,25 +2,16 @@
 
 /*************************************************************************/
 
-void GetAppCmd();
-void GetLED(u16 usAsk);
-void GetChParams(u16 usAsk, u16 usSize);
-void SetLED();
-void SetPWM();
-void SetAnal_P2(int iCH);
-bool CheckFlag();
-void SetFlagInZero();
-void SetFlagOutOne();
-
-/*************************************************************************/
-
 typedef struct {
+	int m_iChannel;
+	int m_iflag;
 	float m_fFreq;
 	float m_fDuty;
 	float m_fDelay;
 }Params_PWM;
 
 typedef struct {
+	int m_iChannel;
 	int m_iFuncType;
 	float m_fFreq;
 	float m_fAmp;
@@ -31,10 +22,14 @@ typedef struct {
 /*************************************************************************/
 
 // Time
-extern XTime g_XT_JF8_Delay_Start, g_XT_JF7_Delay_Start;
-extern XTime g_XT_P2Ch1_Delay_Start, g_XT_P2Ch2_Delay_Start;
+extern XTime g_XT_Delay_Start;
+extern double g_dRunTime;
+
+// flag
+extern bool g_bflag_start;
 
 // input
+extern int g_iPWM_flag[32];
 extern float g_fPWM_Frequency[32];		// Hz
 extern float g_fPWM_Duty[32];			// 0-100
 extern float g_fPWM_Delay[32];			// s
@@ -56,73 +51,69 @@ extern double g_dAnal_Omega[2];			// rad/s
 
 void SetPWM()
 {
-	int iChannel;
+	int iCH;
 	Params_PWM PWM_Params;
 	
-	memcpy(&iChannel, (void *)IO_ADDR_BRAM_IN_DATA, 4);
-	memcpy(&PWM_Params.m_fFreq, (void *)IO_ADDR_BRAM_IN_DATA + 4, 4);
-	memcpy(&PWM_Params.m_fDuty, (void *)IO_ADDR_BRAM_IN_DATA + 8, 4);
-	memcpy(&PWM_Params.m_fDelay, (void *)IO_ADDR_BRAM_IN_DATA + 12, 4);
+	memcpy(&PWM_Params.m_iChannel, (void *)IO_ADDR_BRAM_IN_DATA, 4);
+	memcpy(&PWM_Params.m_iflag, (void *)IO_ADDR_BRAM_IN_DATA + 4, 4);
+	memcpy(&PWM_Params.m_fFreq, (void *)IO_ADDR_BRAM_IN_DATA + 8, 4);
+	memcpy(&PWM_Params.m_fDuty, (void *)IO_ADDR_BRAM_IN_DATA + 12, 4);
+	memcpy(&PWM_Params.m_fDelay, (void *)IO_ADDR_BRAM_IN_DATA + 16, 4);
 
-	g_fPWM_Frequency[iChannel] = PWM_Params.m_fFreq;
-	g_fPWM_Duty[iChannel] = PWM_Params.m_fDuty;
-	g_fPWM_Delay[iChannel] = PWM_Params.m_fDelay;
+	iCH = PWM_Params.m_iChannel;
+	g_iPWM_flag[iCH] = PWM_Params.m_iflag;
+	g_fPWM_Frequency[iCH] = PWM_Params.m_fFreq;
+	g_fPWM_Duty[iCH] = PWM_Params.m_fDuty;
+	g_fPWM_Delay[iCH] = PWM_Params.m_fDelay;
 
-	if (PWM_Params.m_fFreq > 0.0 && PWM_Params.m_fDuty > 0.0)
+	if (PWM_Params.m_iflag > 0)
 	{
-		g_dPWM_Ttotal[iChannel] = (double)(1.0 / PWM_Params.m_fFreq);
-		g_dPWM_Ton[iChannel] = (double)(PWM_Params.m_fDuty * 0.01) * g_dPWM_Ttotal[iChannel];
+		if (PWM_Params.m_fFreq > 0.0 && PWM_Params.m_fDuty > 0.0)
+		{
+			g_dPWM_Ttotal[iCH] = (double)(1.0 / PWM_Params.m_fFreq);
+			g_dPWM_Ton[iCH] = (double)(PWM_Params.m_fDuty * 0.01) * g_dPWM_Ttotal[iCH];
+		}
 	}
 }
 
-void GetChParams(u16 usAsk, u16 usSize)
+void GetParamsToApp(u16 usAsk)
 {
 	int iCH;
 	char *pData;
+	u16 usSize;
 
 	memcpy(&iCH, (void *)IO_ADDR_BRAM_IN_DATA, 4);
 
 	switch (usAsk)
 	{
-		case CMD_GETDIGITAL_FREQ:
+		case CMD_GETDIGITAL:
 		{
-			pData = (char *)&g_fPWM_Frequency[iCH];
+			Params_PWM PWM_Params;
+			PWM_Params.m_iChannel = iCH;
+			PWM_Params.m_iflag = g_iPWM_flag[iCH];
+			PWM_Params.m_fFreq = g_fPWM_Frequency[iCH];
+			PWM_Params.m_fDuty = g_fPWM_Duty[iCH];
+			PWM_Params.m_fDelay = g_fPWM_Delay[iCH];
+			pData = (char *)&PWM_Params;
+			usSize = sizeof(PWM_Params);
 			break;
 		}
-		case CMD_GETDIGITAL_DUTY:
+		case CMD_GETANALOG:
 		{
-			pData = (char *)&g_fPWM_Duty[iCH];
-			break;
+			Params_Analog P2_Params;
+			P2_Params.m_iChannel = iCH;
+			P2_Params.m_iFuncType = g_iP2_FunctionType[iCH];
+			P2_Params.m_fFreq = g_fP2_Anal_Freq[iCH];
+			P2_Params.m_fAmp = g_fP2_Anal_Amp[iCH];
+			P2_Params.m_fRatio = g_fP2_Anal_Ratio[iCH];
+			P2_Params.m_fDelay = g_fP2_Anal_Delay[iCH];
+			pData = (char *)&P2_Params;
+			usSize = sizeof(P2_Params);
 		}
-		case CMD_GETDIGITAL_DELAY:
+		case CMD_GETRUNTIME:
 		{
-			pData = (char *)&g_fPWM_Delay[iCH];
-			break;
-		}
-		case CMD_GETANALOG_FUNCTION:
-		{
-			pData = (char *)&g_iP2_FunctionType[iCH];
-			break;
-		}
-		case CMD_GETANALOG_FREQ:
-		{
-			pData = (char *)&g_fP2_Anal_Freq[iCH];
-			break;
-		}
-		case CMD_GETANALOG_AMP:
-		{
-			pData = (char *)&g_fP2_Anal_Amp[iCH];
-			break;
-		}
-		case CMD_GETANALOG_RATIO:
-		{
-			pData = (char *)&g_fP2_Anal_Ratio[iCH];
-			break;
-		}
-		case CMD_GETANALOG_DELAY:
-		{
-			pData = (char *)&g_fP2_Anal_Delay[iCH];
-			break;
+			pData = (char *)&g_dRunTime;
+			usSize = sizeof(g_dRunTime);
 		}
 		default:
 		{
@@ -130,38 +121,37 @@ void GetChParams(u16 usAsk, u16 usSize)
 		}
 	}
 
+	Xil_Out32(IO_ADDR_BRAM_OUT_SIZE, usSize+4);
 	Xil_Out16(IO_ADDR_BRAM_OUT_ASK, usAsk);
 	Xil_Out16(IO_ADDR_BRAM_OUT_ASK_SIZE, usSize);
-
-	memcpy((void *)IO_ADDR_BRAM_OUT_DATA, pData, 4);
-	Xil_Out32(IO_ADDR_BRAM_OUT_SIZE, usSize+4);
+	memcpy((void *)IO_ADDR_BRAM_OUT_DATA, pData, usSize);
 }
 
 /*************************************************************************/
 
-void SetAnal_P2(int iCH)
+void SetAnal_P2()
 {
-	if (iCH == 0 || iCH == 1)
+	Params_Analog P2_Params;
+	int iCH;
+
+	memcpy(&P2_Params.m_iChannel, (void *)IO_ADDR_BRAM_IN_DATA + 4, 4);
+	memcpy(&P2_Params.m_iFuncType, (void *)IO_ADDR_BRAM_IN_DATA + 4, 4);
+	memcpy(&P2_Params.m_fFreq, (void *)IO_ADDR_BRAM_IN_DATA + 8, 4);
+	memcpy(&P2_Params.m_fAmp, (void *)IO_ADDR_BRAM_IN_DATA + 12, 4);
+	memcpy(&P2_Params.m_fRatio, (void *)IO_ADDR_BRAM_IN_DATA + 16, 4);
+	memcpy(&P2_Params.m_fDelay, (void *)IO_ADDR_BRAM_IN_DATA + 20, 4);
+
+	iCH = P2_Params.m_iChannel;
+	g_iP2_FunctionType[iCH] = P2_Params.m_iFuncType;
+	g_fP2_Anal_Freq[iCH] = P2_Params.m_fFreq;
+	g_fP2_Anal_Amp[iCH] = P2_Params.m_fAmp;
+	g_fP2_Anal_Ratio[iCH] = P2_Params.m_fRatio;
+	g_fP2_Anal_Delay[iCH] = P2_Params.m_fDelay;
+
+	if (P2_Params.m_fFreq > 0.0 && P2_Params.m_fAmp > 0.0)
 	{
-		Params_Analog P2_Params;
-
-		memcpy(&P2_Params.m_iFuncType, (void *)IO_ADDR_BRAM_IN_DATA, 4);
-		memcpy(&P2_Params.m_fFreq, (void *)IO_ADDR_BRAM_IN_DATA + 4, 4);
-		memcpy(&P2_Params.m_fAmp, (void *)IO_ADDR_BRAM_IN_DATA + 8, 4);
-		memcpy(&P2_Params.m_fRatio, (void *)IO_ADDR_BRAM_IN_DATA + 12, 4);
-		memcpy(&P2_Params.m_fDelay, (void *)IO_ADDR_BRAM_IN_DATA + 16, 4);
-
-		g_iP2_FunctionType[iCH] = P2_Params.m_iFuncType;
-		g_fP2_Anal_Freq[iCH] = P2_Params.m_fFreq;
-		g_fP2_Anal_Amp[iCH] = P2_Params.m_fAmp;
-		g_fP2_Anal_Ratio[iCH] = P2_Params.m_fRatio;
-		g_fP2_Anal_Delay[iCH] = P2_Params.m_fDelay;
-
-		if (P2_Params.m_fFreq > 0.0 && P2_Params.m_fAmp > 0.0)
-		{
-			g_dAnal_Period[iCH] = (double)(1.0 / P2_Params.m_fFreq);
-			g_dAnal_Omega[iCH] = (double)(2.0 * PI * P2_Params.m_fFreq);
-		}
+		g_dAnal_Period[iCH] = (double)(1.0 / P2_Params.m_fFreq);
+		g_dAnal_Omega[iCH] = (double)(2.0 * PI * P2_Params.m_fFreq);
 	}
 }
 
@@ -246,28 +236,25 @@ void GetAppCmd()
 				SetFlagOutOne();
 				break;
 			}
-			case CMD_SETOUTPUT:
+			case CMD_SETDIGITAL:
 			{
 				SetPWM();
-				XTime_GetTime(&g_XT_JF8_Delay_Start);
 				break;
 			}
-			case CMD_SETOUTPUTEX:
+			case CMD_SETANALOG:
 			{
-				SetPWM();
-				XTime_GetTime(&g_XT_JF7_Delay_Start);
+				SetAnal_P2();
 				break;
 			}
-			case CMD_SETANALOG1OUT:
+			case CMD_SETSTART:
 			{
-				SetAnal_P2(0);
-				XTime_GetTime(&g_XT_P2Ch1_Delay_Start);
+				XTime_GetTime(&g_XT_Delay_Start);
+				g_bflag_start = true;
 				break;
 			}
-			case CMD_SETANALOG2OUT:
+			case CMD_SETSTOP:
 			{
-				SetAnal_P2(1);
-				XTime_GetTime(&g_XT_P2Ch2_Delay_Start);
+				g_bflag_start = false;
 				break;
 			}
 			case CMD_GETLED:
@@ -276,54 +263,21 @@ void GetAppCmd()
 				SetFlagOutOne();
 				break;
 			}
-			case CMD_GETDIGITAL_FREQ:
+			case CMD_GETDIGITAL:
 			{
-				GetChParams(uCmd, sizeof(float));
-				SetFlagOutOne();
+				GetParamsToApp(CMD_GETDIGITAL);
 				break;
 			}
-			case CMD_GETDIGITAL_DUTY:
+			case CMD_GETANALOG:
 			{
-				GetChParams(uCmd, sizeof(float));
-				SetFlagOutOne();
+				GetParamsToApp(CMD_GETANALOG);
 				break;
 			}
-			case CMD_GETDIGITAL_DELAY:
+			case CMD_GETRUNTIME:
 			{
-				GetChParams(uCmd, sizeof(float));
-				SetFlagOutOne();
+				GetParamsToApp(CMD_GETRUNTIME);
 				break;
 			}
-			case CMD_GETANALOG_FUNCTION:
-			{
-				GetChParams(uCmd, sizeof(int));
-				SetFlagOutOne();
-				break;
-			}
-			case CMD_GETANALOG_FREQ:
-			{
-				GetChParams(uCmd, sizeof(float));
-				SetFlagOutOne();
-				break;
-			}
-			case CMD_GETANALOG_AMP:
-			{
-				GetChParams(uCmd, sizeof(float));
-				SetFlagOutOne();
-				break;
-			}
-			case CMD_GETANALOG_RATIO:
-			{
-				GetChParams(uCmd, sizeof(float));
-				SetFlagOutOne();
-				break;
-			}
-			case CMD_GETANALOG_DELAY:
-			{
-				GetChParams(uCmd, sizeof(float));
-				SetFlagOutOne();
-				break;
-			} 
 			default:
 			{
 				break;
