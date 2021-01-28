@@ -101,8 +101,6 @@ void GetPWM(int iCH)
 		iCH_bit = iCH - 16;
 	}
 
-	XTime_GetTime(&g_XT_End);
-
 	lPeriodCnt = g_dPWM_Ttotal[iCH] * COUNTS_PER_SECOND;
 	lTonCnt = g_dPWM_Ton[iCH] * COUNTS_PER_SECOND;
 	lDelayCnt = g_fPWM_Delay[iCH] * COUNTS_PER_SECOND;
@@ -144,37 +142,32 @@ void GetAnal_Sine(int iCH)
 	double dTimeSeconds;
 	u32 uOutData;
 	
-	if (iCH == 0 || iCH == 1)
+	lPeriodCnt = g_dAnal_Period[iCH] * COUNTS_PER_SECOND;
+	lDelayCnt = g_fP2_Anal_Delay[iCH] * COUNTS_PER_SECOND;
+
+	if ((g_XT_End - g_XT_Delay_Start) >= lDelayCnt)
 	{
-		XTime_GetTime(&g_XT_End);
-
-		lPeriodCnt = g_dAnal_Period[iCH] * COUNTS_PER_SECOND;
-		lDelayCnt = g_fP2_Anal_Delay[iCH] * COUNTS_PER_SECOND;
-
-		if ((g_XT_End - g_XT_Delay_Start) >= lDelayCnt)
+		if (g_fP2_Anal_Freq[iCH] > 0.0 && g_fP2_Anal_Amp[iCH] > 0.0)
 		{
-			if (g_fP2_Anal_Freq[iCH] > 0.0 && g_fP2_Anal_Amp[iCH] > 0.0)
-			{
-				dTimeSeconds = (double)(g_XT_End - g_XT_Start) / (double)COUNTS_PER_SECOND;
-				uOutData = round(65535.0 / 11.0 * (g_fP2_Anal_Amp[iCH] / 2.0 * sin(g_dAnal_Omega[iCH] * dTimeSeconds))) + (65535.0 / 11.0 * (g_fP2_Anal_Amp[iCH] / 2.0));
-			}
-			else
-			{
-				uOutData = 0;
-			}
+			dTimeSeconds = (double)(g_XT_End - g_XT_Start) / (double)COUNTS_PER_SECOND;
+			uOutData = round(65535.0 / 11.0 * (g_fP2_Anal_Amp[iCH] / 2.0 * sin(g_dAnal_Omega[iCH] * dTimeSeconds))) + (65535.0 / 11.0 * (g_fP2_Anal_Amp[iCH] / 2.0));
 		}
 		else
 		{
 			uOutData = 0;
 		}
-
-		if((g_XT_End - g_XT_Start) > (lPeriodCnt * 1000))
-		{
-			g_XT_Start += lPeriodCnt * 1000;
-		}
-
-		g_outputdata_P2[iCH] = uOutData;	
 	}
+	else
+	{
+		uOutData = 0;
+	}
+
+	if((g_XT_End - g_XT_Start) > (lPeriodCnt * 1000))
+	{
+		g_XT_Start += lPeriodCnt * 1000;
+	}
+
+	g_outputdata_P2[iCH] = uOutData;
 }
 
 void GetAnal_Sawtooth(int iCH)
@@ -182,47 +175,42 @@ void GetAnal_Sawtooth(int iCH)
 	long long lPeriodCnt, lRatioPeriodCnt, lDownRatioPeriodCnt, lDelayCnt, lTimeCnt;
 	u32 uOutData;
 
-	if (iCH == 0 || iCH == 1)
+	lPeriodCnt = g_dAnal_Period[iCH] * COUNTS_PER_SECOND;
+	lRatioPeriodCnt = g_fP2_Anal_Ratio[iCH] * lPeriodCnt;
+	lDownRatioPeriodCnt = lPeriodCnt - lRatioPeriodCnt;
+	lDelayCnt = g_fP2_Anal_Delay[iCH] * COUNTS_PER_SECOND;
+
+	if ((g_XT_End - g_XT_Delay_Start) >= lDelayCnt)
 	{
-		XTime_GetTime(&g_XT_End);
-
-		lPeriodCnt = g_dAnal_Period[iCH] * COUNTS_PER_SECOND;
-		lRatioPeriodCnt = g_fP2_Anal_Ratio[iCH] * lPeriodCnt;
-		lDownRatioPeriodCnt = lPeriodCnt - lRatioPeriodCnt;
-		lDelayCnt = g_fP2_Anal_Delay[iCH] * COUNTS_PER_SECOND;
-
-		if ((g_XT_End - g_XT_Delay_Start) >= lDelayCnt)
+		if (g_fP2_Anal_Freq[iCH] > 0.0 && g_fP2_Anal_Amp[iCH] > 0.0)
 		{
-			if (g_fP2_Anal_Freq[iCH] > 0.0 && g_fP2_Anal_Amp[iCH] > 0.0)
+			lTimeCnt = (g_XT_End - g_XT_Start) % lPeriodCnt;
+			
+			if (lTimeCnt <= lRatioPeriodCnt)
 			{
-				lTimeCnt = (g_XT_End - g_XT_Start) % lPeriodCnt;
-				
-				if (lTimeCnt <= lRatioPeriodCnt)
-				{
-					uOutData = round(65535.0 / 11.0 * g_fP2_Anal_Amp[iCH] * lTimeCnt / lRatioPeriodCnt);
-				}
-				else
-				{
-					uOutData = round(65535.0 / 11.0 * (g_fP2_Anal_Amp[iCH] / lDownRatioPeriodCnt) * (lPeriodCnt - lTimeCnt));
-				}
+				uOutData = round(65535.0 / 11.0 * g_fP2_Anal_Amp[iCH] * lTimeCnt / lRatioPeriodCnt);
 			}
 			else
 			{
-				uOutData = 0;
+				uOutData = round(65535.0 / 11.0 * (g_fP2_Anal_Amp[iCH] / lDownRatioPeriodCnt) * (lPeriodCnt - lTimeCnt));
 			}
 		}
 		else
 		{
 			uOutData = 0;
 		}
-
-		if((g_XT_End - g_XT_Start) > (lPeriodCnt * 1000))
-		{
-			g_XT_Start += lPeriodCnt * 1000;
-		}
-
-		g_outputdata_P2[iCH] = uOutData;
 	}
+	else
+	{
+		uOutData = 0;
+	}
+
+	if((g_XT_End - g_XT_Start) > (lPeriodCnt * 1000))
+	{
+		g_XT_Start += lPeriodCnt * 1000;
+	}
+
+	g_outputdata_P2[iCH] = uOutData;
 }
 
 void GetAnal_P2(int iCH)
@@ -279,6 +267,8 @@ int main()
 		{
 			g_outputdata_JF8 = 0;
 			g_outputdata_JF7 = 0;
+
+			XTime_GetTime(&g_XT_End);
 
 			for (i = 0; i < 32; i++)
 			{
