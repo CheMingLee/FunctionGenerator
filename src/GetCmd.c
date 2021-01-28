@@ -81,6 +81,8 @@ void GetParamsToApp(u16 usAsk)
 	int iCH;
 	char *pData;
 	u16 usSize;
+	Params_PWM PWM_Params;
+	Params_Analog P2_Params;
 
 	memcpy(&iCH, (void *)IO_ADDR_BRAM_IN_DATA, 4);
 
@@ -88,7 +90,6 @@ void GetParamsToApp(u16 usAsk)
 	{
 		case CMD_GETDIGITAL:
 		{
-			Params_PWM PWM_Params;
 			PWM_Params.m_iChannel = iCH;
 			PWM_Params.m_iflag = g_iPWM_flag[iCH];
 			PWM_Params.m_fFreq = g_fPWM_Frequency[iCH];
@@ -100,7 +101,6 @@ void GetParamsToApp(u16 usAsk)
 		}
 		case CMD_GETANALOG:
 		{
-			Params_Analog P2_Params;
 			P2_Params.m_iChannel = iCH;
 			P2_Params.m_iFuncType = g_iP2_FunctionType[iCH];
 			P2_Params.m_fFreq = g_fP2_Anal_Freq[iCH];
@@ -109,11 +109,13 @@ void GetParamsToApp(u16 usAsk)
 			P2_Params.m_fDelay = g_fP2_Anal_Delay[iCH];
 			pData = (char *)&P2_Params;
 			usSize = sizeof(P2_Params);
+			break;
 		}
 		case CMD_GETRUNTIME:
 		{
 			pData = (char *)&g_dRunTime;
 			usSize = sizeof(g_dRunTime);
+			break;
 		}
 		default:
 		{
