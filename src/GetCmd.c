@@ -134,7 +134,7 @@ void SetAnal_P2()
 	Params_Analog P2_Params;
 	int iCH;
 
-	memcpy(&P2_Params.m_iChannel, (void *)IO_ADDR_BRAM_IN_DATA + 4, 4);
+	memcpy(&P2_Params.m_iChannel, (void *)IO_ADDR_BRAM_IN_DATA, 4);
 	memcpy(&P2_Params.m_iFuncType, (void *)IO_ADDR_BRAM_IN_DATA + 4, 4);
 	memcpy(&P2_Params.m_fFreq, (void *)IO_ADDR_BRAM_IN_DATA + 8, 4);
 	memcpy(&P2_Params.m_fAmp, (void *)IO_ADDR_BRAM_IN_DATA + 12, 4);
@@ -266,16 +266,19 @@ void GetAppCmd()
 			case CMD_GETDIGITAL:
 			{
 				GetParamsToApp(CMD_GETDIGITAL);
+				SetFlagOutOne();
 				break;
 			}
 			case CMD_GETANALOG:
 			{
 				GetParamsToApp(CMD_GETANALOG);
+				SetFlagOutOne();
 				break;
 			}
 			case CMD_GETRUNTIME:
 			{
 				GetParamsToApp(CMD_GETRUNTIME);
+				SetFlagOutOne();
 				break;
 			}
 			default:

@@ -221,7 +221,7 @@ void GetAnal_Sawtooth(int iCH)
 			g_XT_Start += lPeriodCnt * 1000;
 		}
 
-		g_outputdata_P2[iCH] = uOutData;	
+		g_outputdata_P2[iCH] = uOutData;
 	}
 }
 
@@ -258,16 +258,6 @@ void GetAnal_P2(int iCH)
 			break;
 		}
 	}
-}
-
-/*************************************************************************/
-
-void GetAllOutput()
-{	
-	Xil_Out32(IO_ADDR_OUTPUT, g_outputdata_JF8);
-	Xil_Out32(IO_ADDR_OUTPUT_EX, g_outputdata_JF7);
-	Xil_Out32(LCTRL_ADDR_ANALOG1_OUT, g_outputdata_P2[0]);
-	Xil_Out32(LCTRL_ADDR_ANALOG2_OUT, g_outputdata_P2[1]);
 }
 
 /*************************************************************************/
@@ -311,7 +301,7 @@ int main()
 				}
 			}
 
-			if (g_iP2_FunctionType[0] > 0)
+			if (g_iP2_FunctionType[0] != CLOSE_ANALOG)
 			{
 				GetAnal_P2(0);
 			}
@@ -320,7 +310,7 @@ int main()
 				g_outputdata_P2[0] = 0;
 			}
 
-			if (g_iP2_FunctionType[1] > 0)
+			if (g_iP2_FunctionType[1] != CLOSE_ANALOG)
 			{
 				GetAnal_P2(1);
 			}
@@ -331,10 +321,16 @@ int main()
 		}
 		else
 		{
-			GetParamsInialization();
+			g_outputdata_JF8 = 0;
+			g_outputdata_JF7 = 0;
+			g_outputdata_P2[0] = 0;
+			g_outputdata_P2[1] = 0;
 		}
 
-		GetAllOutput();
+		Xil_Out32(IO_ADDR_OUTPUT, g_outputdata_JF8);
+		Xil_Out32(IO_ADDR_OUTPUT_EX, g_outputdata_JF7);
+		Xil_Out32(LCTRL_ADDR_ANALOG1_OUT, g_outputdata_P2[0]);
+		Xil_Out32(LCTRL_ADDR_ANALOG2_OUT, g_outputdata_P2[1]);
 
 		XTime_GetTime(&g_XT_RunTime_End);
 
