@@ -40,12 +40,11 @@ extern float g_fP2_Anal_Ratio[2];		// 0-1
 extern float g_fP2_Anal_Delay[2];		// s
 
 // PWM
-extern double g_dPWM_Ttotal[32];		// s
-extern double g_dPWM_Ton[32];			// s
+extern long long g_lPWM_PeriodCnt[32], g_lPWM_TonCnt[32], g_lPWM_DelayCnt[32];
 
 // Analog
-extern double g_dAnal_Period[2];		// s
 extern double g_dAnal_Omega[2];			// rad/s
+extern long long g_lAnal_PeriodCnt[2], g_lAnal_RatioPeriodCnt[2], g_lAnal_DownRatioPeriodCnt[2], g_lAnal_DelayCnt[2];
 
 /*************************************************************************/
 
@@ -70,11 +69,14 @@ void SetPWM()
 	{
 		if (PWM_Params.m_fFreq > 0.0 && PWM_Params.m_fDuty > 0.0)
 		{
-			g_dPWM_Ttotal[iCH] = (double)(1.0 / PWM_Params.m_fFreq);
-			g_dPWM_Ton[iCH] = (double)(PWM_Params.m_fDuty * 0.01) * g_dPWM_Ttotal[iCH];
+			g_lPWM_PeriodCnt[iCH] = COUNTS_PER_SECOND / PWM_Params.m_fFreq;
+			g_lPWM_TonCnt[iCH] = PWM_Params.m_fDuty * 0.01 * g_lPWM_PeriodCnt[iCH];
+			g_lPWM_DelayCnt[iCH] = g_fPWM_Delay[iCH] * COUNTS_PER_SECOND;
 		}
 	}
 }
+
+/*************************************************************************/
 
 void GetParamsToApp(u16 usAsk)
 {
@@ -152,8 +154,11 @@ void SetAnal_P2()
 
 	if (P2_Params.m_fFreq > 0.0 && P2_Params.m_fAmp > 0.0)
 	{
-		g_dAnal_Period[iCH] = (double)(1.0 / P2_Params.m_fFreq);
 		g_dAnal_Omega[iCH] = (double)(2.0 * PI * P2_Params.m_fFreq);
+		g_lAnal_PeriodCnt[iCH] = COUNTS_PER_SECOND / P2_Params.m_fFreq;
+		g_lAnal_RatioPeriodCnt[iCH] = P2_Params.m_fRatio * g_lAnal_PeriodCnt[iCH];
+		g_lAnal_DownRatioPeriodCnt[iCH] = g_lAnal_PeriodCnt[iCH] - g_lAnal_RatioPeriodCnt[iCH];
+		g_lAnal_DelayCnt[iCH] = g_fP2_Anal_Delay[iCH] * COUNTS_PER_SECOND;
 	}
 }
 

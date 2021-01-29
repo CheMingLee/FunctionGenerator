@@ -28,12 +28,11 @@ float g_fP2_Anal_Ratio[2];			// 0-1
 float g_fP2_Anal_Delay[2];			// s
 
 // PWM
-double g_dPWM_Ttotal[32];			// s
-double g_dPWM_Ton[32];				// s
+long long g_lPWM_PeriodCnt[32], g_lPWM_TonCnt[32], g_lPWM_DelayCnt[32];
 
 // Analog
-double g_dAnal_Period[2];			// s
 double g_dAnal_Omega[2];			// rad/s
+long long g_lAnal_PeriodCnt[2], g_lAnal_RatioPeriodCnt[2], g_lAnal_DownRatioPeriodCnt[2], g_lAnal_DelayCnt[2];
 
 // output
 u32 g_uOutSetting[16];
@@ -57,8 +56,12 @@ void GetParamsInialization()
 			g_fP2_Anal_Ratio[i] = 0.0;
 			g_fP2_Anal_Delay[i] = 0.0;
 
-			g_dAnal_Period[i] = 0.0;
 			g_dAnal_Omega[i] = 0.0;
+
+			g_lAnal_PeriodCnt[i] = 0;
+			g_lAnal_RatioPeriodCnt[i] = 0;
+			g_lAnal_DownRatioPeriodCnt[i] = 0;
+			g_lAnal_DelayCnt[i] = 0;
 
 			g_outputdata_P2[i] = 0;
 		}
@@ -73,8 +76,9 @@ void GetParamsInialization()
 		g_fPWM_Duty[i] = 0.0;
 		g_fPWM_Delay[i] = 0.0;
 
-		g_dPWM_Ttotal[i] = 0.0;
-		g_dPWM_Ton[i] = 0.0;
+		g_lPWM_PeriodCnt[i] = 0;
+		g_lPWM_TonCnt[i] = 0;
+		g_lPWM_DelayCnt[i] = 0;
 
 		g_uSetPWMOut[i] = 0;
 	}
@@ -89,7 +93,6 @@ void GetParamsInialization()
 
 void GetPWM(int iCH)
 {
-	long long lPeriodCnt, lTonCnt, lDelayCnt;
 	int iCH_bit;
 
 	if (iCH < 16)
@@ -101,15 +104,12 @@ void GetPWM(int iCH)
 		iCH_bit = iCH - 16;
 	}
 
-	lPeriodCnt = g_dPWM_Ttotal[iCH] * COUNTS_PER_SECOND;
-	lTonCnt = g_dPWM_Ton[iCH] * COUNTS_PER_SECOND;
-	lDelayCnt = g_fPWM_Delay[iCH] * COUNTS_PER_SECOND;
-
-	if ((g_XT_End - g_XT_Delay_Start) >= lDelayCnt)
+	if ((g_XT_End - g_XT_Delay_Start) >= g_lPWM_DelayCnt[iCH])
 	{
 		if (g_fPWM_Frequency[iCH] > 0.0 && g_fPWM_Duty[iCH] > 0.0)
 		{
-			if (((g_XT_End - g_XT_Start) % lPeriodCnt) >= lTonCnt)
+			// ((g_XT_End - g_XT_Start) - ((g_XT_End - g_XT_Start) / g_lPWM_PeriodCnt[iCH]) * g_lPWM_PeriodCnt[iCH]) vs (g_XT_End - g_XT_Start) % g_lPWM_PeriodCnt[iCH] -> % is faster
+			if (((g_XT_End - g_XT_Start) % g_lPWM_PeriodCnt[iCH]) >= g_lPWM_TonCnt[iCH])
 			{
 				g_uSetPWMOut[iCH] = 0;
 			}
@@ -128,9 +128,9 @@ void GetPWM(int iCH)
 		g_uSetPWMOut[iCH] = 0;
 	}
 	
-	if((g_XT_End - g_XT_Start) > (lPeriodCnt * 1000))
+	if((g_XT_End - g_XT_Start) > (g_lPWM_PeriodCnt[iCH] * 1000))
 	{
-		g_XT_Start += lPeriodCnt * 1000;
+		g_XT_Start += g_lPWM_PeriodCnt[iCH] * 1000;
 	}
 }
 
@@ -138,19 +138,15 @@ void GetPWM(int iCH)
 
 void GetAnal_Sine(int iCH)
 {
-	long long lPeriodCnt, lDelayCnt;
 	double dTimeSeconds;
 	u32 uOutData;
-	
-	lPeriodCnt = g_dAnal_Period[iCH] * COUNTS_PER_SECOND;
-	lDelayCnt = g_fP2_Anal_Delay[iCH] * COUNTS_PER_SECOND;
 
-	if ((g_XT_End - g_XT_Delay_Start) >= lDelayCnt)
+	if ((g_XT_End - g_XT_Delay_Start) >= g_lAnal_DelayCnt[iCH])
 	{
 		if (g_fP2_Anal_Freq[iCH] > 0.0 && g_fP2_Anal_Amp[iCH] > 0.0)
 		{
 			dTimeSeconds = (double)(g_XT_End - g_XT_Start) / (double)COUNTS_PER_SECOND;
-			uOutData = round(65535.0 / 11.0 * (g_fP2_Anal_Amp[iCH] / 2.0 * sin(g_dAnal_Omega[iCH] * dTimeSeconds))) + (65535.0 / 11.0 * (g_fP2_Anal_Amp[iCH] / 2.0));
+			uOutData = (65535.0 / 11.0 * (g_fP2_Anal_Amp[iCH] / 2.0 * sin(g_dAnal_Omega[iCH] * dTimeSeconds))) + (65535.0 / 11.0 * (g_fP2_Anal_Amp[iCH] / 2.0));
 		}
 		else
 		{
@@ -162,9 +158,9 @@ void GetAnal_Sine(int iCH)
 		uOutData = 0;
 	}
 
-	if((g_XT_End - g_XT_Start) > (lPeriodCnt * 1000))
+	if((g_XT_End - g_XT_Start) > (g_lAnal_PeriodCnt[iCH] * 1000))
 	{
-		g_XT_Start += lPeriodCnt * 1000;
+		g_XT_Start += g_lAnal_PeriodCnt[iCH] * 1000;
 	}
 
 	g_outputdata_P2[iCH] = uOutData;
@@ -172,27 +168,22 @@ void GetAnal_Sine(int iCH)
 
 void GetAnal_Sawtooth(int iCH)
 {
-	long long lPeriodCnt, lRatioPeriodCnt, lDownRatioPeriodCnt, lDelayCnt, lTimeCnt;
 	u32 uOutData;
+	long long lTimeCnt;
 
-	lPeriodCnt = g_dAnal_Period[iCH] * COUNTS_PER_SECOND;
-	lRatioPeriodCnt = g_fP2_Anal_Ratio[iCH] * lPeriodCnt;
-	lDownRatioPeriodCnt = lPeriodCnt - lRatioPeriodCnt;
-	lDelayCnt = g_fP2_Anal_Delay[iCH] * COUNTS_PER_SECOND;
-
-	if ((g_XT_End - g_XT_Delay_Start) >= lDelayCnt)
+	if ((g_XT_End - g_XT_Delay_Start) >= g_lAnal_DelayCnt[iCH])
 	{
 		if (g_fP2_Anal_Freq[iCH] > 0.0 && g_fP2_Anal_Amp[iCH] > 0.0)
 		{
-			lTimeCnt = (g_XT_End - g_XT_Start) % lPeriodCnt;
+			lTimeCnt = (g_XT_End - g_XT_Start) % g_lAnal_PeriodCnt[iCH];
 			
-			if (lTimeCnt <= lRatioPeriodCnt)
+			if (lTimeCnt <= g_lAnal_RatioPeriodCnt[iCH])
 			{
-				uOutData = round(65535.0 / 11.0 * g_fP2_Anal_Amp[iCH] * lTimeCnt / lRatioPeriodCnt);
+				uOutData = (65535.0 / 11.0 * g_fP2_Anal_Amp[iCH] * lTimeCnt / g_lAnal_RatioPeriodCnt[iCH]);
 			}
 			else
 			{
-				uOutData = round(65535.0 / 11.0 * (g_fP2_Anal_Amp[iCH] / lDownRatioPeriodCnt) * (lPeriodCnt - lTimeCnt));
+				uOutData = (65535.0 / 11.0 * (g_fP2_Anal_Amp[iCH] / g_lAnal_DownRatioPeriodCnt[iCH]) * (g_lAnal_PeriodCnt[iCH] - lTimeCnt));
 			}
 		}
 		else
@@ -205,9 +196,9 @@ void GetAnal_Sawtooth(int iCH)
 		uOutData = 0;
 	}
 
-	if((g_XT_End - g_XT_Start) > (lPeriodCnt * 1000))
+	if((g_XT_End - g_XT_Start) > (g_lAnal_PeriodCnt[iCH] * 1000))
 	{
-		g_XT_Start += lPeriodCnt * 1000;
+		g_XT_Start += g_lAnal_PeriodCnt[iCH] * 1000;
 	}
 
 	g_outputdata_P2[iCH] = uOutData;
