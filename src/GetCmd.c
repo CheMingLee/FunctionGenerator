@@ -22,7 +22,7 @@ typedef struct {
 /*************************************************************************/
 
 // Time
-extern XTime g_XT_Delay_Start;
+extern XTime g_XT_Start;
 extern double g_dRunTime;
 
 // flag
@@ -255,7 +255,7 @@ void GetAppCmd()
 			}
 			case CMD_SETSTART:
 			{
-				XTime_GetTime(&g_XT_Delay_Start);
+				XTime_GetTime(&g_XT_Start);
 				g_bflag_start = true;
 				break;
 			}
